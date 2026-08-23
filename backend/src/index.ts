@@ -17,8 +17,33 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Apply JSON and URL-encoded parsing conditionally to bypass multipart/form-data requests
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.headers["content-type"]?.startsWith("multipart/form-data")) {
+    return next();
+  }
+  express.json()(req, res, next);
+});
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.headers["content-type"]?.startsWith("multipart/form-data")) {
+    return next();
+  }
+  express.urlencoded({ extended: true })(req, res, next);
+});
+
+// Gracefully handle body-parser JSON parsing syntax errors (400 Bad Request instead of 500 Unhandled)
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof SyntaxError && "status" in err && err.status === 400 && "body" in err) {
+    res.status(400).json({
+      success: false,
+      error: "Bad Request",
+      message: "Malformed JSON payload",
+    });
+    return;
+  }
+  next(err);
+});
 
 // Request logging (clean and minimal)
 app.use((req: Request, _res: Response, next: NextFunction) => {
