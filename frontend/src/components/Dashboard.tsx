@@ -9,11 +9,15 @@ import {
   Store, 
   Key, 
   Layers, 
-  Activity 
+  Activity,
+  Calculator,
+  LayoutDashboard
 } from "lucide-react";
+import { FinanceMissionView } from "./FinanceMissionView";
 
 export const Dashboard: React.FC = () => {
   const { user, session, signOut, fetchWithAuth } = useAuth();
+  const [activeTab, setActiveTab] = useState<"overview" | "finance">("finance");
   const [backendStatus, setBackendStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [backendResponse, setBackendResponse] = useState<any>(null);
   const [backendError, setBackendError] = useState<string | null>(null);
@@ -58,6 +62,23 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        <div className="nav-tabs-wrapper">
+          <button
+            onClick={() => setActiveTab("finance")}
+            className={`nav-tab-btn ${activeTab === "finance" ? "active" : ""}`}
+          >
+            <Calculator size={16} />
+            <span>Finance Agent (Batch 2)</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`nav-tab-btn ${activeTab === "overview" ? "active" : ""}`}
+          >
+            <LayoutDashboard size={16} />
+            <span>System Overview</span>
+          </button>
+        </div>
+
         <div className="nav-user-controls">
           <div className="user-pill">
             <Store size={16} className="pill-icon" />
@@ -72,8 +93,12 @@ export const Dashboard: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="dashboard-main">
-        {/* Welcome Banner */}
-        <section className="welcome-card">
+        {activeTab === "finance" ? (
+          <FinanceMissionView />
+        ) : (
+          <>
+            {/* Welcome Banner */}
+            <section className="welcome-card">
           <div className="welcome-header">
             <div>
               <div className="status-badge">
@@ -191,35 +216,37 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Operating Loops Architecture Preview */}
-        <section className="architecture-section">
-          <div className="arch-header">
-            <Layers size={20} className="text-indigo" />
-            <h3>Mercora Operating Loops Preview</h3>
-          </div>
-          <div className="loops-grid">
-            <div className="loop-card">
-              <div className="loop-pill green">Growth Loop</div>
-              <h4>Demand & Campaigns</h4>
-              <p>Meta Ads, Catalog Signals, WhatsApp Outreach</p>
-            </div>
-            <div className="loop-card">
-              <div className="loop-pill blue">CRM Loop</div>
-              <h4>Customer Intelligence</h4>
-              <p>Conversations, WhatsApp support, Recovery</p>
-            </div>
-            <div className="loop-card">
-              <div className="loop-pill amber">Finance Loop</div>
-              <h4>Reconciliation</h4>
-              <p>Shopify, Razorpay settlements, Bank credits</p>
-            </div>
-            <div className="loop-card">
-              <div className="loop-pill purple">Commerce Loop</div>
-              <h4>Storefront & Catalog</h4>
-              <p>Agentic storefronts, UPI checkouts, AOV</p>
-            </div>
-          </div>
-        </section>
+            {/* Operating Loops Architecture Preview */}
+            <section className="architecture-section">
+              <div className="arch-header">
+                <Layers size={20} className="text-indigo" />
+                <h3>Mercora Operating Loops Preview</h3>
+              </div>
+              <div className="loops-grid">
+                <div className="loop-card" onClick={() => setActiveTab("finance")} style={{ cursor: "pointer" }}>
+                  <div className="loop-pill amber">Finance Loop (Active)</div>
+                  <h4>Reconciliation Engine</h4>
+                  <p>Shopify, Razorpay settlements, Bank credits</p>
+                </div>
+                <div className="loop-card">
+                  <div className="loop-pill green">Growth Loop</div>
+                  <h4>Demand & Campaigns</h4>
+                  <p>Meta Ads, Catalog Signals, WhatsApp Outreach</p>
+                </div>
+                <div className="loop-card">
+                  <div className="loop-pill blue">CRM Loop</div>
+                  <h4>Customer Intelligence</h4>
+                  <p>Conversations, WhatsApp support, Recovery</p>
+                </div>
+                <div className="loop-card">
+                  <div className="loop-pill purple">Commerce Loop</div>
+                  <h4>Storefront & Catalog</h4>
+                  <p>Agentic storefronts, UPI checkouts, AOV</p>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
       </main>
     </div>
   );

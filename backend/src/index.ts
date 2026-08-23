@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { healthRouter } from "./routes/health";
 import { authRouter } from "./routes/auth";
+import { financeRouter } from "./api/finance.routes";
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 // Routes
 app.use("/api/health", healthRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/finance", financeRouter);
 
 // 404 Fallback
 app.use((_req: Request, res: Response) => {

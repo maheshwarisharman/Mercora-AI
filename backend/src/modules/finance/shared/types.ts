@@ -1,0 +1,167 @@
+// Mercora Finance Module Shared Types
+// Mirroring mercora_schema.sql strictly
+
+export type MissionStatus =
+  | 'created'
+  | 'ingesting'
+  | 'reconciling'
+  | 'needs_review'
+  | 'closed';
+
+export type DetectedSource =
+  | 'shopify_orders'
+  | 'razorpay_settlement'
+  | 'bank_statement'
+  | 'vendor_invoice'
+  | 'support_export'
+  | 'unknown';
+
+export type DetectionMethod =
+  | 'filename_heuristic'
+  | 'gemini_classified'
+  | 'user_corrected';
+
+export type ExtractionMethod =
+  | 'csv_parse'
+  | 'gemini_vision'
+  | 'gemini_text'
+  | 'manual';
+
+export type EventType =
+  | 'SALE'
+  | 'PAYMENT'
+  | 'REFUND'
+  | 'FEE'
+  | 'SETTLEMENT'
+  | 'BANK_TRANSACTION'
+  | 'INVOICE'
+  | 'PURCHASE'
+  | 'ADJUSTMENT'
+  | 'CHARGEBACK'
+  | 'CREDIT_NOTE'
+  | 'DEBIT_NOTE';
+
+export type SourceSystem =
+  | 'shopify'
+  | 'razorpay'
+  | 'bank'
+  | 'vendor'
+  | 'manual';
+
+export type ActorType = 'system' | 'gemini' | 'user';
+
+// Core Schema Entities
+export interface CoreMerchant {
+  id: string;
+  auth_user_id: string;
+  business_name: string;
+  default_currency: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CoreCustomer {
+  id: string;
+  merchant_id: string;
+  external_ref?: string | null;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  created_at: string;
+}
+
+export interface CoreOrder {
+  id: string;
+  merchant_id: string;
+  customer_id?: string | null;
+  external_ref: string;
+  order_number?: string | null;
+  total_amount: number;
+  currency: string;
+  status?: string | null;
+  order_date: string;
+  created_at: string;
+}
+
+export interface CorePayment {
+  id: string;
+  merchant_id: string;
+  order_id?: string | null;
+  external_ref: string;
+  amount: number;
+  currency: string;
+  status?: string | null;
+  payment_date: string;
+  created_at: string;
+}
+
+// Finance Schema Entities
+export interface FinanceMission {
+  id: string;
+  merchant_id: string;
+  period_start: string;
+  period_end: string;
+  sources: string[];
+  objective?: string | null;
+  status: MissionStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SourceDocument {
+  id: string;
+  mission_id: string;
+  merchant_id: string;
+  file_path: string;
+  original_filename: string;
+  mime_type?: string | null;
+  detected_source: DetectedSource;
+  detection_method: DetectionMethod;
+  detection_confidence?: number | null;
+  uploaded_at: string;
+}
+
+export interface ExtractedRecord {
+  id: string;
+  source_document_id: string;
+  mission_id: string;
+  merchant_id: string;
+  raw_json: Record<string, any>;
+  extraction_method: ExtractionMethod;
+  extraction_confidence?: number | null;
+  created_at: string;
+}
+
+export interface NormalizedEvent {
+  id?: string;
+  mission_id: string;
+  merchant_id: string;
+  extracted_record_id: string;
+  event_type: EventType;
+  source_system: SourceSystem;
+  external_ref?: string | null;
+  amount: number;
+  currency?: string;
+  event_date: string;
+  counterparty?: string | null;
+  order_id?: string | null;
+  payment_id?: string | null;
+  customer_id?: string | null;
+  metadata?: Record<string, any>;
+  created_at?: string;
+}
+
+// Audit Log Entity
+export interface AuditLogEntry {
+  id?: string;
+  merchant_id: string;
+  mission_id?: string | null;
+  actor_type: ActorType;
+  actor_id?: string | null;
+  action: string;
+  entity_type: string;
+  entity_id?: string | null;
+  before?: Record<string, any> | null;
+  after?: Record<string, any> | null;
+  created_at?: string;
+}
