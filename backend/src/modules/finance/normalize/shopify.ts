@@ -1,4 +1,4 @@
-import type { NormalizedEvent } from "../shared/types";
+import { parseDateToIso, type NormalizedEvent } from "../shared/types";
 
 /**
  * Pure mapping function for Shopify Orders CSV row.
@@ -16,7 +16,7 @@ export function mapShopifyOrder(
   const totalAmount = parseFloat(raw.total_amount || "0");
   const orderId = String(raw.order_id || "").trim();
   const customerName = raw.customer_name ? String(raw.customer_name).trim() : null;
-  const orderDate = String(raw.order_date || "").trim();
+  const orderDate = parseDateToIso(raw.order_date || raw.date || raw.created_at);
   const status = String(raw.status || "").toLowerCase().trim();
   const currency = String(raw.currency || "INR").trim().toUpperCase();
 

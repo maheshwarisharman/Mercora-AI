@@ -1,4 +1,4 @@
-import type { NormalizedEvent } from "../shared/types";
+import { parseDateToIso, type NormalizedEvent } from "../shared/types";
 
 /**
  * Pure mapping function for Razorpay Transactions CSV row.
@@ -14,9 +14,9 @@ export function mapRazorpayTransaction(
   const events: NormalizedEvent[] = [];
 
   const paymentId = String(raw.payment_id || "").trim();
-  const paymentDate = String(raw.payment_date || "").trim();
+  const paymentDate = parseDateToIso(raw.payment_date || raw.date || raw.created_at);
   const settlementId = String(raw.settlement_id || "").trim();
-  const settlementDate = String(raw.settlement_date || paymentDate).trim();
+  const settlementDate = parseDateToIso(raw.settlement_date, paymentDate);
   const orderRef = String(raw.order_ref || "").trim();
 
   const grossAmount = parseFloat(raw.gross_amount || "0");

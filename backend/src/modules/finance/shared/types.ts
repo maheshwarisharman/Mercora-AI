@@ -1,6 +1,45 @@
 // Mercora Finance Module Shared Types
 // Mirroring mercora_schema.sql strictly
 
+/**
+ * Safely parses any date string / timestamp into Postgres YYYY-MM-DD format.
+ * Never returns an empty string "", preventing PostgreSQL code 22007 invalid input syntax for date.
+ */
+export function parseDateToIso(dateVal?: any, fallbackDate?: string): string {
+  const fallback = fallbackDate || new Date().toISOString().split("T")[0];
+  if (!dateVal || typeof dateVal !== "string" || !dateVal.trim()) {
+    return fallback;
+  }
+  const clean = dateVal.trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+    return clean;
+  }
+
+  if (clean.includes("T") || clean.includes(" ")) {
+    const firstPart = clean.split(/[T ]/)[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(firstPart)) {
+      return firstPart;
+    }
+  }
+
+  if (/^\d{2}[/-]\d{2}[/-]\d{4}$/.test(clean)) {
+    const parts = clean.split(/[/-]/);
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+
+  if (/^\d{4}\/\d{2}\/\d{2}$/.test(clean)) {
+    return clean.replace(/\//g, "-");
+  }
+
+  const d = new Date(clean);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split("T")[0];
+  }
+
+  return fallback;
+}
+
 export type MissionStatus =
   | 'created'
   | 'ingesting'

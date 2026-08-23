@@ -1,4 +1,4 @@
-import type { NormalizedEvent } from "../shared/types";
+import { parseDateToIso, type NormalizedEvent } from "../shared/types";
 
 /**
  * Pure mapping function for Bank Statement CSV row.
@@ -17,7 +17,7 @@ export function mapBankTransaction(
   const rawAmount = isCredit ? creditRaw : debitRaw;
   const parsedAmount = Math.abs(parseFloat(rawAmount || "0"));
 
-  const transactionDate = String(raw.transaction_date || "").trim();
+  const transactionDate = parseDateToIso(raw.transaction_date || raw.date || raw.txn_date || raw.created_at);
   const description = String(raw.description || "Bank Transaction").trim();
   const referenceNumber = raw.reference_number ? String(raw.reference_number).trim() : null;
 

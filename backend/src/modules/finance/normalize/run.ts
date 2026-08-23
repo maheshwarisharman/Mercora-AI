@@ -3,7 +3,7 @@ import { writeAuditLog } from "../shared/audit";
 import { mapShopifyOrder } from "./shopify";
 import { mapRazorpayTransaction } from "./razorpay";
 import { mapBankTransaction } from "./bank";
-import type { ExtractedRecord, NormalizedEvent, SourceDocument } from "../shared/types";
+import { parseDateToIso, type ExtractedRecord, type NormalizedEvent, type SourceDocument } from "../shared/types";
 
 export interface NormalizationSummary {
   events_created: number;
@@ -122,7 +122,7 @@ export async function runMissionNormalization(params: {
     const orderRef = String(raw.order_id || "").trim();
     const orderNumber = raw.order_number ? String(raw.order_number).trim() : null;
     const totalAmount = parseFloat(raw.total_amount || "0");
-    const orderDate = String(raw.order_date || new Date().toISOString().split("T")[0]).trim();
+    const orderDate = parseDateToIso(raw.order_date || raw.date || raw.created_at);
     const status = raw.status ? String(raw.status).trim() : null;
     const currency = raw.currency ? String(raw.currency).trim().toUpperCase() : "INR";
 
@@ -194,7 +194,7 @@ export async function runMissionNormalization(params: {
     const paymentId = String(raw.payment_id || "").trim();
     const orderRef = String(raw.order_ref || "").trim();
     const grossAmount = parseFloat(raw.gross_amount || "0");
-    const paymentDate = String(raw.payment_date || new Date().toISOString().split("T")[0]).trim();
+    const paymentDate = parseDateToIso(raw.payment_date || raw.date || raw.created_at);
     const status = raw.status ? String(raw.status).trim() : null;
 
     let resolvedOrderId: string | null = null;
