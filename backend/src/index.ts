@@ -17,16 +17,32 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
-// Apply JSON and URL-encoded parsing conditionally to bypass multipart/form-data requests
+// Apply JSON and URL-encoded parsing conditionally to bypass multipart/form-data, GET/HEAD/OPTIONS, and empty requests
 app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+    return next();
+  }
   if (req.headers["content-type"]?.startsWith("multipart/form-data")) {
+    return next();
+  }
+  const contentLength = req.headers["content-length"];
+  if (contentLength === "0") {
+    req.body = {};
     return next();
   }
   express.json()(req, res, next);
 });
 
 app.use((req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+    return next();
+  }
   if (req.headers["content-type"]?.startsWith("multipart/form-data")) {
+    return next();
+  }
+  const contentLength = req.headers["content-length"];
+  if (contentLength === "0") {
+    req.body = {};
     return next();
   }
   express.urlencoded({ extended: true })(req, res, next);

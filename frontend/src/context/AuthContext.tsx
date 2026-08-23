@@ -83,10 +83,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
     const token = session?.access_token;
 
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      ...(options.headers as Record<string, string> || {}),
-    };
+    const headers: Record<string, string> = {};
+
+    // Only set default Content-Type application/json if body is NOT FormData
+    if (!(options.body instanceof FormData)) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    if (options.headers) {
+      Object.assign(headers, options.headers);
+    }
 
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
