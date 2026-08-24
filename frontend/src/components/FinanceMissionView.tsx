@@ -493,10 +493,6 @@ export const FinanceMissionView: React.FC = () => {
       {/* Top Banner Header */}
       <div className="finance-header-card">
         <div className="finance-header-main">
-          <div className="finance-badge">
-            <span className="pulse-dot-emerald" />
-            <span>Finance Agent • Autonomous Close Pipeline</span>
-          </div>
           <h1 className="finance-title">Mission Close & Financial Reconciliation Engine</h1>
           <p className="finance-subtitle">
             Deterministic CSV Ingestion, Semantic Understanding, Canonical Normalization, Multi-Source Reconciliation & Autonomous Exception Investigation
@@ -811,7 +807,7 @@ export const FinanceMissionView: React.FC = () => {
                   ))}
                 </div>
               </div>
-            )}
+            )} <br />
 
             {/* 4A. MATCHES TABLE */}
             {matches.length > 0 && (
@@ -819,7 +815,7 @@ export const FinanceMissionView: React.FC = () => {
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="docs-list-title">Reconciled Chains ({matches.length})</h4>
                   <div className="flex gap-2">
-                    <span className="match-status-badge auto_matched">
+                    <span className="font-bold text-sm">
                       ✓ {autoMatchedCount} Auto-Matched (≥85%)
                     </span>
                     {proposedCount > 0 && (
