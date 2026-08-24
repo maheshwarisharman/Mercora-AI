@@ -980,10 +980,12 @@ export const FinanceMissionView: React.FC = () => {
 
                                   <button
                                     onClick={() => setExpandedExceptionId(isExpanded ? null : ex.id)}
-                                    className="btn-text-sm"
+                                    className="h-9 w-35 bg-slate-100 rounded-[6px]"
                                   >
-                                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                    <div className="flex items-center justify-center gap-2">
+                                    <span className="ml-2">{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
                                     <span>{isExpanded ? "Hide Details" : "Inspect Events"}</span>
+                                    </div>
                                   </button>
                                 </div>
                               </td>
@@ -1044,14 +1046,10 @@ export const FinanceMissionView: React.FC = () => {
                                       <div className="judgment-card">
                                         <div className="judgment-header">
                                           <div className="judgment-title-row">
-                                            <Sparkles size={18} className="text-indigo" />
-                                            <span className={`judgment-badge ${latestJudgment.classification}`}>
+                                            <span className={"font-bold"}>
                                               {latestJudgment.classification.replace(/_/g, " ")}
                                             </span>
                                           </div>
-                                          <span className="judgment-confidence-pill">
-                                            {latestJudgment.confidence}% Confidence
-                                          </span>
                                         </div>
 
                                         <div className="judgment-body">
