@@ -1109,8 +1109,8 @@ export const FinanceMissionView: React.FC = () => {
             )}
           </section>
 
-          {/* STEP 5: Normalized Canonical Events Table */}
-          <section className="finance-step-card">
+          {/* STEP 5: Normalized Canonical Events Table — hidden once reconcile results are shown */}
+          {matches.length === 0 && <section className="finance-step-card">
             <div className="step-badge-row">
               <span className="step-num">Step 5</span>
               <h2 className="step-heading">Canonical Financial Events Explorer</h2>
@@ -1250,7 +1250,7 @@ export const FinanceMissionView: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </section>
+          </section>}
         </>
       )}
     </div>
