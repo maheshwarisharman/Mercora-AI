@@ -3,47 +3,16 @@ import { useAuth } from "../context/AuthContext";
 import { 
   Sparkles, 
   LogOut, 
-  Server, 
-  CheckCircle2, 
-  AlertCircle, 
   Store, 
-  Key, 
-  Layers, 
-  Activity,
   Calculator,
-  LayoutDashboard
 } from "lucide-react";
 import { FinanceMissionView } from "./FinanceMissionView";
 
 export const Dashboard: React.FC = () => {
-  const { user, session, signOut, fetchWithAuth } = useAuth();
+  const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<"overview" | "finance">("finance");
-  const [backendStatus, setBackendStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [backendResponse, setBackendResponse] = useState<any>(null);
-  const [backendError, setBackendError] = useState<string | null>(null);
-
-  const testBackendConnection = async () => {
-    setBackendStatus("loading");
-    setBackendError(null);
-    try {
-      const res = await fetchWithAuth("/api/auth/me");
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || `Request failed with status ${res.status}`);
-      }
-
-      setBackendResponse(data);
-      setBackendStatus("success");
-    } catch (err: any) {
-      console.error("Backend test failed:", err);
-      setBackendError(err.message || "Failed to reach Bun Express backend.");
-      setBackendStatus("error");
-    }
-  };
 
   const storeName = user?.user_metadata?.store_name || "Merchant Store";
-  const fullName = user?.user_metadata?.full_name || "Merchant Operator";
 
   return (
     <div className="dashboard-layout">
@@ -68,14 +37,7 @@ export const Dashboard: React.FC = () => {
             className={`nav-tab-btn ${activeTab === "finance" ? "active" : ""}`}
           >
             <Calculator size={16} />
-            <span>Finance Agent (Batch 2)</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("overview")}
-            className={`nav-tab-btn ${activeTab === "overview" ? "active" : ""}`}
-          >
-            <LayoutDashboard size={16} />
-            <span>System Overview</span>
+            <span>Finance Agent</span>
           </button>
         </div>
 
@@ -96,156 +58,7 @@ export const Dashboard: React.FC = () => {
         {activeTab === "finance" ? (
           <FinanceMissionView />
         ) : (
-          <>
-            {/* Welcome Banner */}
-            <section className="welcome-card">
-          <div className="welcome-header">
-            <div>
-              <div className="status-badge">
-                <span className="pulse-dot" />
-                <span>Supabase Auth & Session Active</span>
-              </div>
-              <h2 className="welcome-title">Welcome back, {fullName}</h2>
-              <p className="welcome-desc">
-                Your Merchant Brain is connected. Operating loops for Growth, CRM, Finance, and Commerce are ready.
-              </p>
-            </div>
-            <div className="welcome-stats">
-              <div className="stat-box">
-                <span className="stat-label">Auth Provider</span>
-                <span className="stat-val">Supabase (Postgres)</span>
-              </div>
-              <div className="stat-box">
-                <span className="stat-label">Backend Runtime</span>
-                <span className="stat-val">Bun + Express (TS)</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 2-Column Info Grid */}
-        <div className="grid-2col">
-          {/* User & Auth Details */}
-          <div className="card">
-            <div className="card-header">
-              <div className="card-header-icon">
-                <Key size={18} />
-              </div>
-              <h3>Active Session Details</h3>
-            </div>
-            <div className="card-body">
-              <div className="info-row">
-                <span className="info-label">User ID:</span>
-                <code className="code-snippet">{user?.id}</code>
-              </div>
-              <div className="info-row">
-                <span className="info-label">Email:</span>
-                <span className="info-value">{user?.email}</span>
-              </div>
-              {user?.phone && (
-                <div className="info-row">
-                  <span className="info-label">Phone:</span>
-                  <span className="info-value">{user.phone}</span>
-                </div>
-              )}
-              <div className="info-row">
-                <span className="info-label">Last Sign In:</span>
-                <span className="info-value">
-                  {user?.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : "Just now"}
-                </span>
-              </div>
-              <div className="info-row">
-                <span className="info-label">JWT Token (Bearer):</span>
-                <code className="code-snippet truncate">
-                  {session?.access_token ? `${session.access_token.substring(0, 32)}...` : "None"}
-                </code>
-              </div>
-            </div>
-          </div>
-
-          {/* Backend Integration Test */}
-          <div className="card">
-            <div className="card-header">
-              <div className="card-header-icon">
-                <Server size={18} />
-              </div>
-              <h3>Backend Auth Middleware Test</h3>
-            </div>
-            <div className="card-body">
-              <p className="card-desc">
-                Click below to send an authenticated request with your Supabase Bearer token to the Bun Express backend route: <code>GET /api/auth/me</code>.
-              </p>
-              
-              <button 
-                onClick={testBackendConnection} 
-                disabled={backendStatus === "loading"}
-                className="btn-primary"
-              >
-                {backendStatus === "loading" ? (
-                  <div className="spinner-sm" />
-                ) : (
-                  <>
-                    <Activity size={16} />
-                    <span>Verify Backend /api/auth/me</span>
-                  </>
-                )}
-              </button>
-
-              {backendStatus === "success" && (
-                <div className="test-result success">
-                  <div className="result-header">
-                    <CheckCircle2 size={16} className="text-emerald" />
-                    <strong>Backend Verified (200 OK)</strong>
-                  </div>
-                  <pre className="json-block">
-                    {JSON.stringify(backendResponse, null, 2)}
-                  </pre>
-                </div>
-              )}
-
-              {backendStatus === "error" && (
-                <div className="test-result error">
-                  <div className="result-header">
-                    <AlertCircle size={16} className="text-rose" />
-                    <strong>Verification Failed</strong>
-                  </div>
-                  <p className="error-text">{backendError}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-            {/* Operating Loops Architecture Preview */}
-            <section className="architecture-section">
-              <div className="arch-header">
-                <Layers size={20} className="text-indigo" />
-                <h3>Mercora Operating Loops Preview</h3>
-              </div>
-              <div className="loops-grid">
-                <div className="loop-card" onClick={() => setActiveTab("finance")} style={{ cursor: "pointer" }}>
-                  <div className="loop-pill amber">Finance Loop (Active)</div>
-                  <h4>Reconciliation Engine</h4>
-                  <p>Shopify, Razorpay settlements, Bank credits</p>
-                </div>
-                <div className="loop-card">
-                  <div className="loop-pill green">Growth Loop</div>
-                  <h4>Demand & Campaigns</h4>
-                  <p>Meta Ads, Catalog Signals, WhatsApp Outreach</p>
-                </div>
-                <div className="loop-card">
-                  <div className="loop-pill blue">CRM Loop</div>
-                  <h4>Customer Intelligence</h4>
-                  <p>Conversations, WhatsApp support, Recovery</p>
-                </div>
-                <div className="loop-card">
-                  <div className="loop-pill purple">Commerce Loop</div>
-                  <h4>Storefront & Catalog</h4>
-                  <p>Agentic storefronts, UPI checkouts, AOV</p>
-                </div>
-              </div>
-            </section>
-          </>
+          <div className="p-6">Overview</div>
         )}
       </main>
     </div>

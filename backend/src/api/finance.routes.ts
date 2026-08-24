@@ -4,6 +4,8 @@ import { ingestRouter } from "../modules/finance/ingest/routes";
 import { understandRouter } from "../modules/finance/understand/routes";
 import { extractRouter } from "../modules/finance/extract/routes";
 import { normalizeRouter } from "../modules/finance/normalize/routes";
+import { reconcileRouter } from "../modules/finance/reconcile/routes";
+import { exceptionsRouter } from "../modules/finance/exceptions/routes";
 
 export const financeRouter = Router();
 
@@ -15,3 +17,5 @@ financeRouter.use(ingestRouter);
 financeRouter.use(understandRouter);
 financeRouter.use(extractRouter);
 financeRouter.use(normalizeRouter);
+financeRouter.use(reconcileRouter);
+financeRouter.use(exceptionsRouter);

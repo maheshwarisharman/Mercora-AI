@@ -1,0 +1,34 @@
+[
+  {
+    "ticket_ref": "TICK-8842",
+    "customer_email": "siddharth.mehta71@proton.me",
+    "created_date": "2026-08-18",
+    "subject": "Package arrived with damaged outer box - manual compensation adjustment",
+    "body": "Customer Siddharth Mehta reported that Order #SHF-1038 arrived with dented outer packaging. Support supervisor approved an immediate ₹500 concession/manual goodwill adjustment, processed directly via payment gateway settlement deduction.",
+    "related_amount": 500
+  },
+  {
+    "ticket_ref": "TICK-1029",
+    "customer_email": "priya.sharma92@gmail.com",
+    "created_date": "2026-08-04",
+    "subject": "Inquiry about delivery estimate",
+    "body": "Customer inquired regarding expected delivery date for order #SHF-1004. Provided BlueDart tracking number and estimated delivery within 48 hours.",
+    "related_amount": null
+  },
+  {
+    "ticket_ref": "TICK-3391",
+    "customer_email": "rahul.gupta44@outlook.com",
+    "created_date": "2026-08-12",
+    "subject": "Discount coupon query on bulk order",
+    "body": "Customer requested a bulk purchase coupon code for artisanal roast beans. Provided seasonal promotional coupon for ₹150 off on next purchase.",
+    "related_amount": 150
+  },
+  {
+    "ticket_ref": "TICK-7201",
+    "customer_email": "ananya.patel55@yahoo.co.in",
+    "created_date": "2026-08-15",
+    "subject": "Address update request before shipment",
+    "body": "Customer requested change of apartment number on order #SHF-1030 prior to warehouse dispatch. Warehouse manifest successfully updated.",
+    "related_amount": null
+  }
+]

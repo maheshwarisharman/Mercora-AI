@@ -1563,3 +1563,269 @@ body {
   color: var(--text-muted);
   font-size: 0.825rem;
 }
+
+/* ==========================================================================
+   Reconcile, Matches, Exceptions & Rich Explanation Card Styles
+   ========================================================================== */
+
+/* Match Status Badges */
+.match-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.match-status-badge.auto_matched {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.match-status-badge.proposed {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+/* Confidence Pill */
+.score-pill {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.score-pill.high { background: #ecfdf5; color: #047857; }
+.score-pill.medium { background: #fffbeb; color: #b45309; }
+.score-pill.low { background: #fef2f2; color: #b91c1c; }
+
+/* Match Type Tag */
+.match-type-tag {
+  font-size: 0.675rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+/* Exceptions Badges */
+.exception-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.exception-badge.missing_settlement { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.exception-badge.missing_bank_credit { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+.exception-badge.timing_difference { background: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
+.exception-badge.duplicate { background: #fdf4ff; color: #86198f; border: 1px solid #f5d0fe; }
+.exception-badge.unexplained_difference { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
+
+.status-badge-sm {
+  display: inline-block;
+  font-size: 0.675rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.status-badge-sm.open { background: #f1f5f9; color: #475569; }
+.status-badge-sm.investigating { background: #e0e7ff; color: #4338ca; }
+.status-badge-sm.explained { background: #ecfdf5; color: #047857; }
+.status-badge-sm.requires_human_review { background: #fff7ed; color: #c2410c; }
+
+/* Explain Button */
+.btn-explain {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+  transition: all 0.15s ease;
+}
+
+.btn-explain:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
+}
+
+.btn-explain:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Judgment Explanation Card (Killer Demo UI) */
+.judgment-card {
+  margin-top: 14px;
+  background: #ffffff;
+  border: 1px solid #e0e7ff;
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: 0 8px 20px -4px rgba(79, 70, 229, 0.08);
+  animation: fadeIn 0.25s ease-out;
+}
+
+.judgment-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+}
+
+.judgment-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.judgment-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.judgment-badge.MATCHED_WITH_ADJUSTMENT { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.judgment-badge.MATCHED { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.judgment-badge.REFUND { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.judgment-badge.FEE { background: #f5f3ff; color: #6b21a8; border: 1px solid #ddd6fe; }
+.judgment-badge.TIMING_DIFFERENCE { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+.judgment-badge.DUPLICATE { background: #fdf4ff; color: #86198f; border: 1px solid #f5d0fe; }
+.judgment-badge.REQUIRES_HUMAN_REVIEW { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+.judgment-badge.UNEXPLAINED { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+.judgment-confidence-pill {
+  font-size: 0.725rem;
+  font-weight: 700;
+  color: #4f46e5;
+  background: #eef2ff;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.judgment-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.judgment-explanation-text {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  line-height: 1.6;
+  background: #f8fafc;
+  border-left: 3px solid #4f46e5;
+  padding: 10px 14px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Evidence List in Card */
+.judgment-evidence-section {
+  background: #fafafa;
+  border: 1px solid #f1f5f9;
+  border-radius: var(--radius-md);
+  padding: 12px;
+}
+
+.evidence-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  letter-spacing: 0.03em;
+}
+
+.evidence-items-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.evidence-item-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.evidence-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.evidence-source-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #4f46e5;
+  text-transform: uppercase;
+}
+
+.evidence-ref-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.evidence-snippet {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* Recommended Action Box */
+.judgment-action-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  color: #065f46;
+}
+
+/* Inline Expandable Events Subtable */
+.inline-events-box {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  padding: 12px;
+}
+
+.inline-events-title {
+  font-size: 0.725rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+

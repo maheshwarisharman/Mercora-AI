@@ -1,0 +1,23 @@
+[
+  {
+    "refund_ref": "RF-5502",
+    "order_ref": "#SHF-1038",
+    "amount": 500,
+    "date": "2026-08-19",
+    "reason": "Manual goodwill adjustment of ₹500 for Order #SHF-1038 damaged packaging as documented in support ticket TICK-8842."
+  },
+  {
+    "refund_ref": "RF-1092",
+    "order_ref": "#SHF-1009",
+    "amount": 2400,
+    "date": "2026-08-07",
+    "reason": "Standard customer return for unwanted secondary item."
+  },
+  {
+    "refund_ref": "RF-8821",
+    "order_ref": "#SHF-1015",
+    "amount": 899,
+    "date": "2026-08-10",
+    "reason": "Full cancellation before fulfillment."
+  }
+]

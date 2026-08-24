@@ -15,10 +15,13 @@
     "fee_amount": 61.93,
     "tax_on_fee": 11.15,
     "net_amount": 3023.44,
+    "bank_credit_amount": 3023.44,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS70639238"
+    "bank_reference_number": "CMS70639238",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 2,
@@ -36,10 +39,13 @@
     "fee_amount": 107.99,
     "tax_on_fee": 19.44,
     "net_amount": 5272.09,
+    "bank_credit_amount": 5272.09,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS16369677"
+    "bank_reference_number": "CMS16369677",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 3,
@@ -57,10 +63,13 @@
     "fee_amount": 229.87,
     "tax_on_fee": 41.38,
     "net_amount": 11222.03,
+    "bank_credit_amount": 11222.03,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS33134730"
+    "bank_reference_number": "CMS33134730",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 4,
@@ -78,10 +87,13 @@
     "fee_amount": 259.29,
     "tax_on_fee": 46.67,
     "net_amount": 12658.76,
+    "bank_credit_amount": 12658.76,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 5,
@@ -99,10 +111,13 @@
     "fee_amount": 165.9,
     "tax_on_fee": 29.86,
     "net_amount": 8099.26,
+    "bank_credit_amount": 8099.26,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS50442288"
+    "bank_reference_number": "CMS50442288",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 6,
@@ -120,10 +135,13 @@
     "fee_amount": 249.68,
     "tax_on_fee": 44.94,
     "net_amount": 12189.4,
+    "bank_credit_amount": 12189.4,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 7,
@@ -136,15 +154,21 @@
     "order_date": "2026-08-03",
     "payment_date": "2026-08-04",
     "settlement_date": "2026-08-05",
-    "bank_date": "2026-08-05",
+    "bank_date": "2026-08-17",
     "gross_amount": 10224.79,
     "fee_amount": 204.5,
     "tax_on_fee": 36.81,
     "net_amount": 9983.48,
+    "bank_credit_amount": 9983.48,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS54130773"
+    "bank_reference_number": "CMS54130773",
+    "anomaly_type": "timing_difference",
+    "anomaly_details": {
+      "type": "timing_difference",
+      "description": "Bank credit lands 12 days after settlement instead of usual 1-5 day window"
+    }
   },
   {
     "chain_id": 8,
@@ -162,10 +186,13 @@
     "fee_amount": 120.03,
     "tax_on_fee": 21.61,
     "net_amount": 5859.8,
+    "bank_credit_amount": 5859.8,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS75342255"
+    "bank_reference_number": "CMS75342255",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 9,
@@ -183,10 +210,13 @@
     "fee_amount": 222.99,
     "tax_on_fee": 40.14,
     "net_amount": 10886.46,
+    "bank_credit_amount": 10886.46,
     "order_status": "partially_refunded",
     "payment_status": "captured",
     "refund_amount": 5574.8,
-    "bank_reference_number": "CMS59805139"
+    "bank_reference_number": "CMS59805139",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 10,
@@ -204,10 +234,13 @@
     "fee_amount": 191.86,
     "tax_on_fee": 34.53,
     "net_amount": 9366.81,
+    "bank_credit_amount": 9366.81,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 11,
@@ -225,10 +258,13 @@
     "fee_amount": 133.81,
     "tax_on_fee": 24.09,
     "net_amount": 6532.82,
+    "bank_credit_amount": 6532.82,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS90027991"
+    "bank_reference_number": "CMS90027991",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 12,
@@ -246,10 +282,13 @@
     "fee_amount": 214.27,
     "tax_on_fee": 38.57,
     "net_amount": 10460.66,
+    "bank_credit_amount": 10460.66,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS38144239"
+    "bank_reference_number": "CMS38144239",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 13,
@@ -267,10 +306,13 @@
     "fee_amount": 161.75,
     "tax_on_fee": 29.12,
     "net_amount": 7896.8,
+    "bank_credit_amount": 7896.8,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 14,
@@ -279,19 +321,25 @@
     "customer_name": "Arjun Mukherjee",
     "customer_email": "arjun.mukherjee48@outlook.com",
     "payment_id": "pay_roj5oQsIyUQgWn",
-    "settlement_id": "setl_WswP41tCu8GHIv",
+    "settlement_id": null,
     "order_date": "2026-08-06",
     "payment_date": "2026-08-06",
-    "settlement_date": "2026-08-07",
-    "bank_date": "2026-08-07",
+    "settlement_date": null,
+    "bank_date": null,
     "gross_amount": 1429.21,
     "fee_amount": 28.58,
     "tax_on_fee": 5.14,
     "net_amount": 1395.49,
+    "bank_credit_amount": null,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": "missing_settlement",
+    "anomaly_details": {
+      "type": "missing_settlement",
+      "description": "Payment captured in Razorpay but settlement leg is omitted"
+    }
   },
   {
     "chain_id": 15,
@@ -309,10 +357,13 @@
     "fee_amount": 99.09,
     "tax_on_fee": 17.84,
     "net_amount": 4837.43,
+    "bank_credit_amount": 4837.43,
     "order_status": "refunded",
     "payment_status": "refunded",
     "refund_amount": 4954.36,
-    "bank_reference_number": "CMS76339524"
+    "bank_reference_number": "CMS76339524",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 16,
@@ -330,10 +381,13 @@
     "fee_amount": 153.48,
     "tax_on_fee": 27.63,
     "net_amount": 7493.04,
+    "bank_credit_amount": 7493.04,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS12685737"
+    "bank_reference_number": "CMS12685737",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 17,
@@ -351,10 +405,13 @@
     "fee_amount": 44.03,
     "tax_on_fee": 7.93,
     "net_amount": 2149.73,
+    "bank_credit_amount": 2149.73,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS75364542"
+    "bank_reference_number": "CMS75364542",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 18,
@@ -372,10 +429,13 @@
     "fee_amount": 222.68,
     "tax_on_fee": 40.08,
     "net_amount": 10871.4,
-    "order_status": "partially_refunded",
+    "bank_credit_amount": 10871.4,
+    "order_status": "paid",
     "payment_status": "captured",
-    "refund_amount": 5567.08,
-    "bank_reference_number": "CMS99731098"
+    "refund_amount": null,
+    "bank_reference_number": "CMS99731098",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 19,
@@ -393,10 +453,13 @@
     "fee_amount": 203.93,
     "tax_on_fee": 36.71,
     "net_amount": 9956.01,
+    "bank_credit_amount": 9956.01,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 20,
@@ -414,10 +477,13 @@
     "fee_amount": 57.01,
     "tax_on_fee": 10.26,
     "net_amount": 2783.17,
+    "bank_credit_amount": 2783.17,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS25283559"
+    "bank_reference_number": "CMS25283559",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 21,
@@ -430,15 +496,21 @@
     "order_date": "2026-08-10",
     "payment_date": "2026-08-10",
     "settlement_date": "2026-08-13",
-    "bank_date": "2026-08-13",
+    "bank_date": null,
     "gross_amount": 2993.27,
     "fee_amount": 59.87,
     "tax_on_fee": 10.78,
     "net_amount": 2922.62,
+    "bank_credit_amount": null,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS61376609"
+    "bank_reference_number": "CMS61376609",
+    "anomaly_type": "missing_bank_credit",
+    "anomaly_details": {
+      "type": "missing_bank_credit",
+      "description": "Settlement exists in Razorpay but bank statement credit row is omitted"
+    }
   },
   {
     "chain_id": 22,
@@ -456,10 +528,13 @@
     "fee_amount": 215.66,
     "tax_on_fee": 38.82,
     "net_amount": 10528.5,
+    "bank_credit_amount": 10528.5,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 23,
@@ -477,10 +552,13 @@
     "fee_amount": 49.55,
     "tax_on_fee": 8.92,
     "net_amount": 2419.1,
+    "bank_credit_amount": 2419.1,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS59533364"
+    "bank_reference_number": "CMS59533364",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 24,
@@ -498,10 +576,13 @@
     "fee_amount": 93.28,
     "tax_on_fee": 16.79,
     "net_amount": 4554.08,
+    "bank_credit_amount": 4554.08,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS67198871"
+    "bank_reference_number": "CMS67198871",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 25,
@@ -519,10 +600,13 @@
     "fee_amount": 16.59,
     "tax_on_fee": 2.99,
     "net_amount": 809.99,
+    "bank_credit_amount": 809.99,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS31861299"
+    "bank_reference_number": "CMS31861299",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 26,
@@ -540,10 +624,13 @@
     "fee_amount": 218.43,
     "tax_on_fee": 39.32,
     "net_amount": 10663.68,
+    "bank_credit_amount": 10663.68,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 27,
@@ -561,10 +648,13 @@
     "fee_amount": 233.07,
     "tax_on_fee": 41.95,
     "net_amount": 11378.4,
-    "order_status": "partially_refunded",
+    "bank_credit_amount": 11378.4,
+    "order_status": "paid",
     "payment_status": "captured",
-    "refund_amount": 5826.71,
-    "bank_reference_number": "CMS91969220"
+    "refund_amount": null,
+    "bank_reference_number": "CMS91969220",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 28,
@@ -577,15 +667,21 @@
     "order_date": "2026-08-13",
     "payment_date": "2026-08-13",
     "settlement_date": "2026-08-14",
-    "bank_date": "2026-08-14",
+    "bank_date": "2026-08-28",
     "gross_amount": 3973.26,
     "fee_amount": 79.47,
     "tax_on_fee": 14.3,
     "net_amount": 3879.49,
+    "bank_credit_amount": 3879.49,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS51397758"
+    "bank_reference_number": "CMS51397758",
+    "anomaly_type": "timing_difference",
+    "anomaly_details": {
+      "type": "timing_difference",
+      "description": "Bank credit lands 14 days after settlement instead of usual 1-5 day window"
+    }
   },
   {
     "chain_id": 29,
@@ -603,10 +699,13 @@
     "fee_amount": 70.88,
     "tax_on_fee": 12.76,
     "net_amount": 3460.32,
+    "bank_credit_amount": 3460.32,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS14580476"
+    "bank_reference_number": "CMS14580476",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 30,
@@ -624,10 +723,13 @@
     "fee_amount": 138.09,
     "tax_on_fee": 24.86,
     "net_amount": 6741.42,
-    "order_status": "refunded",
-    "payment_status": "refunded",
-    "refund_amount": 6904.37,
-    "bank_reference_number": "CMS91401297"
+    "bank_credit_amount": 6741.42,
+    "order_status": "paid",
+    "payment_status": "captured",
+    "refund_amount": null,
+    "bank_reference_number": "CMS91401297",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 31,
@@ -645,10 +747,13 @@
     "fee_amount": 133.09,
     "tax_on_fee": 23.96,
     "net_amount": 6497.23,
+    "bank_credit_amount": 6497.23,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 32,
@@ -666,10 +771,13 @@
     "fee_amount": 224.36,
     "tax_on_fee": 40.38,
     "net_amount": 10953.04,
+    "bank_credit_amount": 10953.04,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 33,
@@ -687,10 +795,16 @@
     "fee_amount": 275.24,
     "tax_on_fee": 49.54,
     "net_amount": 13437.02,
+    "bank_credit_amount": 13437.02,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": "duplicate",
+    "anomaly_details": {
+      "type": "duplicate",
+      "description": "Duplicate export row in Razorpay transactions CSV"
+    }
   },
   {
     "chain_id": 34,
@@ -708,10 +822,13 @@
     "fee_amount": 203.96,
     "tax_on_fee": 36.71,
     "net_amount": 9957.4,
+    "bank_credit_amount": 9957.4,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 35,
@@ -729,10 +846,13 @@
     "fee_amount": 254.46,
     "tax_on_fee": 45.8,
     "net_amount": 12422.93,
+    "bank_credit_amount": 12422.93,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS22503769"
+    "bank_reference_number": "CMS22503769",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 36,
@@ -750,10 +870,13 @@
     "fee_amount": 269.77,
     "tax_on_fee": 48.56,
     "net_amount": 13170.25,
-    "order_status": "partially_refunded",
+    "bank_credit_amount": 13170.25,
+    "order_status": "paid",
     "payment_status": "captured",
-    "refund_amount": 6744.29,
-    "bank_reference_number": "CMS34441049"
+    "refund_amount": null,
+    "bank_reference_number": "CMS34441049",
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 37,
@@ -771,10 +894,13 @@
     "fee_amount": 44.34,
     "tax_on_fee": 7.98,
     "net_amount": 2164.76,
+    "bank_credit_amount": 2164.76,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 38,
@@ -792,10 +918,19 @@
     "fee_amount": 240.83,
     "tax_on_fee": 43.35,
     "net_amount": 11757.24,
+    "bank_credit_amount": 11257.24,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS44164576"
+    "bank_reference_number": "CMS44164576",
+    "anomaly_type": "unexplained_difference",
+    "anomaly_details": {
+      "type": "unexplained_difference",
+      "expected_amount": 11757.24,
+      "actual_amount": 11257.24,
+      "difference": 500,
+      "description": "Bank credit is off by ₹500 from net settlement; to be resolved via synthetic evidence in Batch 4"
+    }
   },
   {
     "chain_id": 39,
@@ -813,10 +948,13 @@
     "fee_amount": 279.13,
     "tax_on_fee": 50.24,
     "net_amount": 13627.2,
+    "bank_credit_amount": 13627.2,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": null
+    "bank_reference_number": null,
+    "anomaly_type": null,
+    "anomaly_details": null
   },
   {
     "chain_id": 40,
@@ -834,9 +972,12 @@
     "fee_amount": 39.65,
     "tax_on_fee": 7.14,
     "net_amount": 1935.86,
+    "bank_credit_amount": 1935.86,
     "order_status": "paid",
     "payment_status": "captured",
     "refund_amount": null,
-    "bank_reference_number": "CMS41983445"
+    "bank_reference_number": "CMS41983445",
+    "anomaly_type": null,
+    "anomaly_details": null
   }
 ]

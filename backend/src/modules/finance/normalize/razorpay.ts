@@ -70,24 +70,26 @@ export function mapRazorpayTransaction(
     },
   });
 
-  // 3. SETTLEMENT event
-  events.push({
-    mission_id: missionId,
-    merchant_id: merchantId,
-    extracted_record_id: extractedRecordId,
-    event_type: "SETTLEMENT",
-    source_system: "razorpay",
-    external_ref: settlementId || `${paymentId}-settlement`,
-    amount: isNaN(netAmount) ? 0 : netAmount,
-    currency: "INR",
-    event_date: settlementDate,
-    counterparty: "Razorpay",
-    metadata: {
-      raw_source_row: raw,
-      payment_id: paymentId,
-      settlement_date: settlementDate,
-    },
-  });
+  // 3. SETTLEMENT event (only if settlement leg exists)
+  if (settlementId && !isNaN(netAmount) && netAmount > 0) {
+    events.push({
+      mission_id: missionId,
+      merchant_id: merchantId,
+      extracted_record_id: extractedRecordId,
+      event_type: "SETTLEMENT",
+      source_system: "razorpay",
+      external_ref: settlementId,
+      amount: netAmount,
+      currency: "INR",
+      event_date: settlementDate,
+      counterparty: "Razorpay",
+      metadata: {
+        raw_source_row: raw,
+        payment_id: paymentId,
+        settlement_date: settlementDate,
+      },
+    });
+  }
 
   return events;
 }
