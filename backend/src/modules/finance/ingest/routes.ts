@@ -111,6 +111,52 @@ ingestRouter.post("/missions", async (req: AuthenticatedRequest, res: Response):
 });
 
 /**
+ * GET /api/finance/missions
+ * Lists all finance missions for the logged-in merchant
+ */
+ingestRouter.get("/missions", async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const authUserId = req.user?.id;
+    if (!authUserId) {
+      res.status(401).json({ success: false, error: "Unauthorized" });
+      return;
+    }
+
+    const merchant = await getOrCreateMerchant(authUserId, req.user?.user_metadata);
+    const supabase = getServiceSupabase();
+
+    const { data: missions, error } = await supabase
+      .schema("finance")
+      .from("finance_missions")
+      .select("*")
+      .eq("merchant_id", merchant.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching missions list:", error);
+      res.status(500).json({
+        success: false,
+        error: "Database Error",
+        message: error.message,
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: (missions || []) as FinanceMission[],
+    });
+  } catch (err: any) {
+    console.error("List missions exception:", err);
+    res.status(500).json({
+      success: false,
+      error: "Internal Server Error",
+      message: err.message,
+    });
+  }
+});
+
+/**
  * GET /api/finance/missions/:id
  * Fetches mission detail
  */

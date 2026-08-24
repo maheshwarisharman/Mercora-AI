@@ -13,6 +13,11 @@ import {
   Sparkles,
   Layers,
   ShieldAlert,
+  Plus,
+  Search,
+  ArrowLeft,
+  FileText,
+  X,
 } from "lucide-react";
 
 interface FinanceMission {
@@ -118,6 +123,13 @@ interface MissionException {
 export const FinanceMissionView: React.FC = () => {
   const { fetchWithAuth } = useAuth();
 
+  // Missions List State (SaaS Table)
+  const [missions, setMissions] = useState<FinanceMission[]>([]);
+  const [loadingMissions, setLoadingMissions] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [missionSearchTerm, setMissionSearchTerm] = useState("");
+  const [missionStatusFilter, setMissionStatusFilter] = useState("ALL");
+
   // Active Mission State
   const [activeMission, setActiveMission] = useState<FinanceMission | null>(null);
   const [documents, setDocuments] = useState<SourceDoc[]>([]);
@@ -163,6 +175,38 @@ export const FinanceMissionView: React.FC = () => {
   const [expandedExceptionId, setExpandedExceptionId] = useState<string | null>(null);
   const [explainingExceptionId, setExplainingExceptionId] = useState<string | null>(null);
   const [selectedSignalsMatch, setSelectedSignalsMatch] = useState<ReconciledMatch | null>(null);
+
+  // Fetch all missions from backend
+  const fetchMissions = async () => {
+    setLoadingMissions(true);
+    try {
+      const res = await fetchWithAuth("/api/finance/missions");
+      if (res.ok) {
+        const data = await res.json();
+        setMissions(data.data || []);
+      }
+    } catch (err) {
+      console.error("Error fetching missions list:", err);
+    } finally {
+      setLoadingMissions(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMissions();
+  }, []);
+
+  // Helper to parse sources
+  const parseSources = (sources: string[] | string | undefined | null): string[] => {
+    if (!sources) return [];
+    if (Array.isArray(sources)) return sources;
+    try {
+      const parsed = JSON.parse(sources);
+      return Array.isArray(parsed) ? parsed : [String(sources)];
+    } catch {
+      return [String(sources)];
+    }
+  };
 
   // Load existing documents, events, matches & exceptions
   const loadMissionData = async (missionId: string) => {
@@ -235,12 +279,14 @@ export const FinanceMissionView: React.FC = () => {
       }
 
       setActiveMission(data.data);
+      setShowCreateModal(false);
       setDocuments([]);
       setEvents([]);
       setMatches([]);
       setExceptions([]);
       setProcessLogs([]);
       setReconcileLogs([]);
+      fetchMissions();
     } catch (err: any) {
       setMissionError(err.message || "Failed to create finance mission");
     } finally {
@@ -488,120 +534,252 @@ export const FinanceMissionView: React.FC = () => {
   const autoMatchedCount = matches.filter((m) => m.status === "auto_matched").length;
   const proposedCount = matches.filter((m) => m.status === "proposed").length;
 
+  // Filtered Missions for SaaS Table
+  const filteredMissions = missions.filter((m) => {
+    if (missionStatusFilter !== "ALL" && m.status !== missionStatusFilter) return false;
+    if (missionSearchTerm) {
+      const term = missionSearchTerm.toLowerCase();
+      const idMatch = m.id.toLowerCase().includes(term);
+      const objMatch = m.objective?.toLowerCase().includes(term);
+      const startMatch = m.period_start.includes(term);
+      const endMatch = m.period_end.includes(term);
+      return idMatch || objMatch || startMatch || endMatch;
+    }
+    return true;
+  });
+
   return (
-    <div className="finance-container">
-      {/* Top Banner Header */}
-      <div className="finance-header-card">
-        <div className="finance-header-main">
-          <h1 className="finance-title">Mission Close & Financial Reconciliation Engine</h1>
-          <p className="finance-subtitle">
-            Deterministic CSV Ingestion, Semantic Understanding, Canonical Normalization, Multi-Source Reconciliation & Autonomous Exception Investigation
+    <div className="w-full space-y-6">
+      {/* SaaS Dashboard Header */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/70">
+              <Sparkles size={13} className="text-indigo-600" />
+              Financial Recon Engine
+            </span>
+            {activeMission && (
+              <span className="text-xs font-mono font-medium text-slate-500">
+                / Mission #{activeMission.id.slice(0, 8)}
+              </span>
+            )}
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+            {activeMission ? `Mission #${activeMission.id.slice(0, 8)}` : "Finance Missions"}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1.5 max-w-3xl leading-relaxed">
+            {activeMission
+              ? activeMission.objective || "Reconcile multi-channel sales against settlement payouts and bank credits."
+              : "Manage and execute multi-source financial reconciliation missions across Shopify, Razorpay, and Bank statements."}
           </p>
         </div>
 
-        {activeMission && (
-          <div className="active-mission-pill">
-            <div className="mission-pill-left">
-              <span className="pill-label">Active Mission</span>
-              <code className="pill-id">{activeMission.id.slice(0, 8)}...</code>
-            </div>
-            <span className={`status-tag ${activeMission.status}`}>
-              {activeMission.status.toUpperCase()}
-            </span>
+        <div className="flex items-center gap-3 shrink-0">
+          {activeMission ? (
             <button
               onClick={() => setActiveMission(null)}
-              className="btn-text-sm"
-              title="Create or select another mission"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 shadow-2xs cursor-pointer"
             >
-              New Mission
+              <ArrowLeft size={16} />
+              <span>All Missions Table</span>
             </button>
-          </div>
-        )}
+          ) : null}
+
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+          >
+            <Plus size={17} className="stroke-[2.5]" />
+            <span>New Mission</span>
+          </button>
+        </div>
       </div>
 
-      {/* STEP 1: Mission Creation */}
+      {/* VIEW 1: ALL MISSIONS SAAS TABLE (when no active mission) */}
       {!activeMission ? (
-        <section className="finance-step-card">
-          <div className="step-badge-row">
-            <span className="step-num">Step 1</span>
-            <h2 className="step-heading">Initialize Financial Mission</h2>
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden w-full">
+          {/* Table Toolbar */}
+          <div className="p-4 sm:p-5 border-b border-slate-200/80 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
+              {/* Search Bar */}
+              <div className="relative flex-1 min-w-[280px]">
+                <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search missions by ID, goal, or date range..."
+                  value={missionSearchTerm}
+                  onChange={(e) => setMissionSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs transition-all"
+                />
+              </div>
+
+              {/* Filter Dropdown */}
+              <div className="flex items-center gap-2 shrink-0">
+                <Filter size={15} className="text-slate-400 shrink-0" />
+                <select
+                  value={missionStatusFilter}
+                  onChange={(e) => setMissionStatusFilter(e.target.value)}
+                  className="px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs transition-all cursor-pointer"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="created">Created</option>
+                  <option value="ingesting">Ingesting</option>
+                  <option value="reconciling">Reconciling</option>
+                  <option value="needs_review">Needs Review</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="text-xs font-semibold text-slate-500 shrink-0">
+              Showing <span className="text-slate-900 font-bold">{filteredMissions.length}</span> of <span className="text-slate-900 font-bold">{missions.length}</span> missions
+            </div>
           </div>
-          <p className="step-description">
-            Specify the financial close period and source systems to reconcile (Shopify, Razorpay, Bank statement).
-          </p>
 
-          {missionError && (
-            <div className="alert alert-error">
-              <AlertCircle size={18} />
-              <span>{missionError}</span>
-            </div>
-          )}
+          {/* Full Width Table */}
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="py-4 px-6 min-w-[280px]">Mission ID & Goal</th>
+                  <th className="py-4 px-6 min-w-[220px]">Date Period</th>
+                  <th className="py-4 px-6 min-w-[240px]">Recon Sources</th>
+                  <th className="py-4 px-6 min-w-[160px]">Status</th>
+                  <th className="py-4 px-6 min-w-[140px]">Created</th>
+                  <th className="py-4 px-6 min-w-[110px] text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {loadingMissions ? (
+                  <tr>
+                    <td colSpan={6} className="py-16 text-center text-slate-400">
+                      <div className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-50 border border-slate-200/70">
+                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-sm font-medium text-slate-600">Loading missions from Supabase...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredMissions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-20 text-center text-slate-400">
+                      <FileText size={40} className="mx-auto mb-3 text-slate-300 stroke-[1.5]" />
+                      <p className="font-bold text-slate-800 text-base">No finance missions found</p>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Create your first mission to initialize automated reconciliation across Shopify, Razorpay & Bank data.</p>
+                      <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-xs cursor-pointer"
+                      >
+                        <Plus size={15} />
+                        <span>Create Mission</span>
+                      </button>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMissions.map((m) => {
+                    const srcs = parseSources(m.sources);
+                    return (
+                      <tr
+                        key={m.id}
+                        onClick={() => setActiveMission(m)}
+                        className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                      >
+                        {/* Mission ID & Goal */}
+                        <td className="py-4.5 px-6">
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono font-bold text-xs text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80 shrink-0">
+                              #{m.id.slice(0, 8)}
+                            </span>
+                            <span className="text-sm font-medium text-slate-800 truncate max-w-[260px]" title={m.objective || "Financial Reconciliation"}>
+                              {m.objective || "Financial Reconciliation"}
+                            </span>
+                          </div>
+                        </td>
 
-          <form onSubmit={handleCreateMission} className="mission-form">
-            <div className="grid-2col-dense">
-              <div className="form-group">
-                <label>Period Start Date</label>
-                <input
-                  type="date"
-                  value={periodStart}
-                  onChange={(e) => setPeriodStart(e.target.value)}
-                  required
-                />
-              </div>
+                        {/* Period */}
+                        <td className="py-4.5 px-6 text-xs font-medium text-slate-700 whitespace-nowrap">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200/70 font-mono text-[12px]">
+                            <span>{m.period_start}</span>
+                            <span className="text-slate-400 font-bold">→</span>
+                            <span>{m.period_end}</span>
+                          </div>
+                        </td>
 
-              <div className="form-group">
-                <label>Period End Date</label>
-                <input
-                  type="date"
-                  value={periodEnd}
-                  onChange={(e) => setPeriodEnd(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
+                        {/* Sources */}
+                        <td className="py-4.5 px-6">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {srcs.map((s) => (
+                              <span
+                                key={s}
+                                className="text-xs font-medium px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200/80 capitalize"
+                              >
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
 
-            <div className="form-group">
-              <label>Reconciliation Sources</label>
-              <div className="sources-checkbox-row">
-                {[
-                  { id: "shopify", label: "Shopify Orders (Sales & Refunds)" },
-                  { id: "razorpay", label: "Razorpay Gateway (Payments & Fees)" },
-                  { id: "bank", label: "HDFC Bank Statement (Settlement Credits)" },
-                ].map((src) => (
-                  <label key={src.id} className="source-checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={selectedSources.includes(src.id)}
-                      onChange={() => toggleSource(src.id)}
-                    />
-                    <span>{src.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
+                        {/* Status */}
+                        <td className="py-4.5 px-6 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border capitalize ${
+                              m.status === "closed"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : m.status === "needs_review"
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : m.status === "reconciling"
+                                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                : m.status === "ingesting"
+                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                : "bg-slate-100 text-slate-700 border-slate-200"
+                            }`}
+                          >
+                            <span
+                              className={`w-2 h-2 rounded-full ${
+                                m.status === "closed"
+                                  ? "bg-emerald-500"
+                                  : m.status === "needs_review"
+                                  ? "bg-amber-500 animate-pulse"
+                                  : m.status === "reconciling"
+                                  ? "bg-indigo-500 animate-pulse"
+                                  : m.status === "ingesting"
+                                  ? "bg-blue-500 animate-pulse"
+                                  : "bg-slate-400"
+                              }`}
+                            />
+                            <span>{m.status.replace("_", " ")}</span>
+                          </span>
+                        </td>
 
-            <div className="form-group">
-              <label>Mission Objective (Optional)</label>
-              <input
-                type="text"
-                placeholder="e.g. Close August Books & verify Razorpay payout variance"
-                value={objective}
-                onChange={(e) => setObjective(e.target.value)}
-              />
-            </div>
+                        {/* Created Date */}
+                        <td className="py-4.5 px-6 text-xs font-medium text-slate-500 whitespace-nowrap">
+                          {new Date(m.created_at).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </td>
 
-            <button type="submit" className="btn-primary" disabled={creatingMission}>
-              {creatingMission ? (
-                <div className="spinner-sm" />
-              ) : (
-                <>
-                  <span>Create Finance Mission</span>
-                  <ArrowRight size={16} />
-                </>
-              )}
-            </button>
-          </form>
-        </section>
+                        {/* Action Button */}
+                        <td className="py-4.5 px-6 text-right whitespace-nowrap">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMission(m);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 group-hover:border-indigo-300 transition-all shadow-2xs cursor-pointer"
+                          >
+                            <span>Open</span>
+                            <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
         <>
           {/* STEP 2: Document Upload & Classification */}
@@ -1245,6 +1423,114 @@ export const FinanceMissionView: React.FC = () => {
             </div>
           </section>}
         </>
+      )}
+
+      {/* CREATE MISSION MODAL */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl max-w-lg w-full p-6 relative">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Initialize Financial Mission</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Specify date range and sources to reconcile</p>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {missionError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+                <AlertCircle size={16} />
+                <span>{missionError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateMission} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Period Start</label>
+                  <input
+                    type="date"
+                    value={periodStart}
+                    onChange={(e) => setPeriodStart(e.target.value)}
+                    required
+                    className="w-full px-3 py-1.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Period End</label>
+                  <input
+                    type="date"
+                    value={periodEnd}
+                    onChange={(e) => setPeriodEnd(e.target.value)}
+                    required
+                    className="w-full px-3 py-1.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Reconciliation Sources</label>
+                <div className="space-y-2 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700/60">
+                  {[
+                    { id: "shopify", label: "Shopify Orders (Sales & Refunds)" },
+                    { id: "razorpay", label: "Razorpay Gateway (Payments & Fees)" },
+                    { id: "bank", label: "HDFC Bank Statement (Settlement Credits)" },
+                  ].map((src) => (
+                    <label key={src.id} className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={selectedSources.includes(src.id)}
+                        onChange={() => toggleSource(src.id)}
+                        className="rounded border-slate-300 dark:border-slate-700 text-slate-900 focus:ring-slate-900"
+                      />
+                      <span>{src.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Mission Goal / Objective</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Reconcile August sales against Razorpay payouts"
+                  value={objective}
+                  onChange={(e) => setObjective(e.target.value)}
+                  className="w-full px-3 py-1.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-400"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-3.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingMission}
+                  className="px-4 py-1.5 text-xs font-medium text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white rounded-lg shadow-sm flex items-center gap-1.5 disabled:opacity-50 transition-all"
+                >
+                  {creatingMission ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white dark:border-slate-900 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span>Create Mission</span>
+                      <ArrowRight size={14} />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
