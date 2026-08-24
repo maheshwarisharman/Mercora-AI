@@ -708,7 +708,7 @@ export const FinanceMissionView: React.FC = () => {
               <button
                 onClick={handleExtractAndNormalize}
                 disabled={processingPipeline || documents.length === 0}
-                className="btn-accent-glow"
+                className="btn-primary"
               >
                 {processingPipeline ? (
                   <>
@@ -860,15 +860,15 @@ export const FinanceMissionView: React.FC = () => {
                               <code className="ref-code">{orderRef}</code>
                             </td>
                             <td>
-                              <span className="match-type-tag">{m.match_type}</span>
+                              <span className="match-type-tag">{m.match_type.match("exact_id") ? "Exact" : "Fuzzy"}</span>
                             </td>
                             <td>
-                              <span className={`score-pill ${isHigh ? "high" : isMed ? "medium" : "low"}`}>
+                              <span>
                                 {m.confidence}%
                               </span>
                             </td>
                             <td>
-                              <span className={`match-status-badge ${m.status}`}>
+                              <span>
                                 {m.status.replace("_", " ")}
                               </span>
                             </td>
@@ -960,24 +960,23 @@ export const FinanceMissionView: React.FC = () => {
                               </td>
                               <td>
                                 <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => handleExplainDifference(ex.id)}
-                                    disabled={isExplaining}
-                                    className="btn-explain"
-                                    title="Chains plain retrieval, LLM investigation, and LLM judgment"
-                                  >
-                                    {isExplaining ? (
-                                      <>
-                                        <div className="spinner-sm" />
-                                        <span>Investigating...</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Sparkles size={14} />
-                                        <span>Explain this difference</span>
-                                      </>
-                                    )}
-                                  </button>
+                                <button
+                                  onClick={() => handleExplainDifference(ex.id)}
+                                  disabled={isExplaining}
+                                  title="Chains plain retrieval, LLM investigation, and LLM judgment"
+                                  className="btn-primary"
+                                >
+                                  {isExplaining ? (
+                                    <>
+                                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900" />
+                                      <span>Investigating...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>Explain difference</span>
+                                    </>
+                                  )}
+                                </button>
 
                                   <button
                                     onClick={() => setExpandedExceptionId(isExpanded ? null : ex.id)}

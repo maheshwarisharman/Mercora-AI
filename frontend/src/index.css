@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
 
 :root {
   --bg-base: #f8fafc;
@@ -689,27 +690,53 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: var(--accent-primary);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+
+  height: 36px;
+  padding: 0 14px;
+
+  background: #18181b;
   color: #fff;
+
+  border: 1px solid #18181b;
+  border-radius: 6px;
+
   font-family: inherit;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+
   cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: var(--shadow-sm);
+
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.05);
+
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
   margin-top: 4px;
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--accent-primary-hover);
+.btn-primary:hover {
+  background: #27272a;
+  border-color: #27272a;
+}
+
+.btn-primary:active {
+  background: #09090b;
+}
+
+.btn-primary:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #a1a1aa;
 }
 
 .btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  pointer-events: none;
+  opacity: 0.5;
 }
 
 .test-result {
