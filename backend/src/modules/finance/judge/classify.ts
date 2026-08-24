@@ -152,7 +152,18 @@ Evaluate and return the structured JSON judgment.`;
     temperature: 0.1,
   });
 
-  const validatedOutput = JudgeOutputSchema.parse(completion.data);
+  // Normalize LLM output: models sometimes return variant field names
+  // (e.g. "confidence_score" instead of "confidence") despite the schema hint.
+  const raw = completion.data as Record<string, any>;
+  const normalized = {
+    classification: raw.classification,
+    confidence: raw.confidence ?? raw.confidence_score ?? raw.confidence_pct ?? 0,
+    explanation: raw.explanation ?? raw.summary ?? raw.reasoning ?? "",
+    evidence_ids: raw.evidence_ids ?? raw.cited_evidence_ids ?? raw.evidenceIds ?? [],
+    recommended_action: raw.recommended_action ?? raw.recommendedAction ?? raw.action ?? raw.recommendation ?? "Review manually in financial portal.",
+  };
+
+  const validatedOutput = JudgeOutputSchema.parse(normalized);
 
   // 5. Anti-Hallucination Guardrail: validate cited evidence_ids against real DB records
   const validCitedEvidenceIds: string[] = [];

@@ -1,5 +1,55 @@
 import type { LLMProvider, StructuredCompletionRequest, StructuredCompletionResult } from "./types";
 
+/**
+ * Converts a standard JSON Schema (from zod-to-json-schema) into Google Gemini's OpenAPI-compatible schema subset.
+ * Strips $schema, $ref, definitions, and additionalProperties.
+ */
+function sanitizeSchemaForGemini(schema: any): any {
+  if (!schema || typeof schema !== "object") return schema;
+
+  // If top-level contains definitions or $defs, unwrap the root definition
+  if (schema.definitions) {
+    const rootKey = schema.$ref ? schema.$ref.replace("#/definitions/", "") : Object.keys(schema.definitions)[0];
+    if (rootKey && schema.definitions[rootKey]) {
+      return sanitizeSchemaForGemini(schema.definitions[rootKey]);
+    }
+  }
+
+  if (schema.$defs) {
+    const rootKey = schema.$ref ? schema.$ref.replace("#/$defs/", "") : Object.keys(schema.$defs)[0];
+    if (rootKey && schema.$defs[rootKey]) {
+      return sanitizeSchemaForGemini(schema.$defs[rootKey]);
+    }
+  }
+
+  if (Array.isArray(schema)) {
+    return schema.map((item) => sanitizeSchemaForGemini(item));
+  }
+
+  const clean: Record<string, any> = {};
+
+  for (const [key, value] of Object.entries(schema)) {
+    if (
+      key === "$schema" ||
+      key === "$ref" ||
+      key === "definitions" ||
+      key === "$defs" ||
+      key === "additionalProperties"
+    ) {
+      continue;
+    }
+    if (value && typeof value === "object") {
+      clean[key] = sanitizeSchemaForGemini(value);
+    } else if (key === "type" && typeof value === "string") {
+      clean[key] = value.toUpperCase();
+    } else {
+      clean[key] = value;
+    }
+  }
+
+  return clean;
+}
+
 export class GeminiProvider implements LLMProvider {
   public readonly name = "gemini";
   private readonly purpose: "investigate" | "judge";
@@ -44,7 +94,7 @@ export class GeminiProvider implements LLMProvider {
       }
 
       if (req.responseSchema) {
-        payload.generationConfig.responseSchema = req.responseSchema;
+        payload.generationConfig.responseSchema = sanitizeSchemaForGemini(req.responseSchema);
       }
 
       const response = await fetch(endpoint, {
@@ -63,10 +113,22 @@ export class GeminiProvider implements LLMProvider {
       }
 
       const json = (await response.json()) as any;
-      const candidateText = json.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+      // Thinking models (e.g. gemini-2.5-flash with thinking) return multiple parts:
+      // the first part(s) may be internal "thought" tokens; the actual JSON output
+      // is always in the LAST text-bearing part.
+      const rawParts: any[] = json.candidates?.[0]?.content?.parts || [];
+      const candidateText =
+        rawParts
+          .filter((p: any) => typeof p.text === "string" && p.text.trim() !== "")
+          .map((p: any) => p.text)
+          .pop() || "";
 
       if (!candidateText) {
-        throw new Error("Gemini returned an empty response or no candidate text.");
+        const finishReason = json.candidates?.[0]?.finishReason;
+        throw new Error(
+          `Gemini returned an empty response. finishReason=${finishReason}. Full response: ${JSON.stringify(json).slice(0, 500)}`
+        );
       }
 
       let parsedData: T;
