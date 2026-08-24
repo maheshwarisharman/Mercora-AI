@@ -554,10 +554,6 @@ export const FinanceMissionView: React.FC = () => {
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/70">
-              <Sparkles size={13} className="text-indigo-600" />
-              Financial Recon Engine
-            </span>
             {activeMission && (
               <span className="text-xs font-mono font-medium text-slate-500">
                 / Mission #{activeMission.id.slice(0, 8)}
@@ -587,10 +583,10 @@ export const FinanceMissionView: React.FC = () => {
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 transition-all shadow-sm shrink-0 whitespace-nowrap cursor-pointer"
+            className="btn-primary"
           >
             <Plus size={17} className="stroke-[2.5]" />
-            <span>New Mission</span>
+            <span >New Mission</span>
           </button>
         </div>
       </div>
@@ -621,7 +617,7 @@ export const FinanceMissionView: React.FC = () => {
                   onChange={(e) => setMissionStatusFilter(e.target.value)}
                   className="px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs transition-all cursor-pointer"
                 >
-                  <option value="ALL">All Statuses</option>
+                  <option value="ALL">All Status</option>
                   <option value="created">Created</option>
                   <option value="ingesting">Ingesting</option>
                   <option value="reconciling">Reconciling</option>
@@ -641,7 +637,8 @@ export const FinanceMissionView: React.FC = () => {
             <table className="w-full text-left text-sm border-collapse">
               <thead>
                 <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <th className="py-4 px-6 min-w-[280px]">Mission ID & Goal</th>
+                  <th className="py-4 px-6 min-w-[160px]">Mission ID</th>
+                  <th className="py-4 px-6 min-w-[280px]">Goal</th>
                   <th className="py-4 px-6 min-w-[220px]">Date Period</th>
                   <th className="py-4 px-6 min-w-[240px]">Recon Sources</th>
                   <th className="py-4 px-6 min-w-[160px]">Status</th>
@@ -655,7 +652,7 @@ export const FinanceMissionView: React.FC = () => {
                     <td colSpan={6} className="py-16 text-center text-slate-400">
                       <div className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-50 border border-slate-200/70">
                         <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-sm font-medium text-slate-600">Loading missions from Supabase...</span>
+                        <span className="text-sm font-medium text-slate-600">Loading finance missions...</span>
                       </div>
                     </td>
                   </tr>
@@ -684,14 +681,20 @@ export const FinanceMissionView: React.FC = () => {
                         className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
                       >
                         {/* Mission ID & Goal */}
-                        <td className="py-4.5 px-6">
-                          <div className="flex items-center gap-3">
-                            <span className="font-mono font-bold text-xs text-slate-800 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200/80 shrink-0">
+                        <td className="py-4.5 px-6 whitespace-nowrap">
+                          <div className="inline-flex items-center gap-3">
+                            <span className="font-mono font-bold text-xs text-slate-800 px-2.5 py-1 rounded-md shrink-0">
                               #{m.id.slice(0, 8)}
                             </span>
-                            <span className="text-sm font-medium text-slate-800 truncate max-w-[260px]" title={m.objective || "Financial Reconciliation"}>
-                              {m.objective || "Financial Reconciliation"}
-                            </span>
+                          </div>
+                        </td>
+
+                        {/* Mission Goal */}
+                        <td className="py-4.5 px-6 text-xs font-medium text-slate-700 whitespace-nowrap ">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 font-mono text-[12px]">
+                          <span className="text-sm font-medium text-slate-800 truncate max-w-[300px]" title={m.objective || "Financial Reconciliation"}>
+                            {m.objective || "Financial Reconciliation"}
+                          </span>
                           </div>
                         </td>
 
@@ -1428,10 +1431,10 @@ export const FinanceMissionView: React.FC = () => {
       {/* CREATE MISSION MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl max-w-lg w-full p-6 relative">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Initialize Financial Mission</h3>
+                <h3 className="text-lg font-bold text-slate-900">Initialize Financial Mission</h3>
                 <p className="text-xs text-slate-500 mt-0.5">Specify date range and sources to reconcile</p>
               </div>
               <button
@@ -1458,35 +1461,35 @@ export const FinanceMissionView: React.FC = () => {
                     value={periodStart}
                     onChange={(e) => setPeriodStart(e.target.value)}
                     required
-                    className="w-full px-3 py-1.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-400"
+                    className="w-full px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Period End</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Period End</label>
                   <input
                     type="date"
                     value={periodEnd}
                     onChange={(e) => setPeriodEnd(e.target.value)}
                     required
-                    className="w-full px-3 py-1.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-400"
+                    className="w-full px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Reconciliation Sources</label>
-                <div className="space-y-2 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-200 dark:border-slate-700/60">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Reconciliation Sources</label>
+                <div className="space-y-3">
                   {[
                     { id: "shopify", label: "Shopify Orders (Sales & Refunds)" },
                     { id: "razorpay", label: "Razorpay Gateway (Payments & Fees)" },
                     { id: "bank", label: "HDFC Bank Statement (Settlement Credits)" },
                   ].map((src) => (
-                    <label key={src.id} className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                    <label key={src.id} className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={selectedSources.includes(src.id)}
                         onChange={() => toggleSource(src.id)}
-                        className="rounded border-slate-300 dark:border-slate-700 text-slate-900 focus:ring-slate-900"
+                        className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                       />
                       <span>{src.label}</span>
                     </label>
@@ -1495,21 +1498,21 @@ export const FinanceMissionView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Mission Goal / Objective</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Mission Goal / Objective</label>
                 <input
                   type="text"
                   placeholder="e.g. Reconcile August sales against Razorpay payouts"
                   value={objective}
                   onChange={(e) => setObjective(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-slate-400"
+                  className="w-full px-3 py-1.5 text-sm bg-white border border-slate-200  rounded-lg text-slate-900  placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800 mt-4">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 mt-4">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-3.5 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                  className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
