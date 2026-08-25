@@ -251,6 +251,7 @@ export class GeminiProvider implements LLMProvider {
           role: "assistant",
           content: "",
           toolCalls,
+          rawParts: parts,
         };
         return { message, requestsToolCalls: true };
       }
@@ -259,7 +260,7 @@ export class GeminiProvider implements LLMProvider {
       const textParts = parts.filter((p: any) => typeof p.text === "string" && p.text.trim());
       const content = textParts.map((p: any) => p.text).join("\n").trim();
 
-      const message: AgentMessage = { role: "assistant", content };
+      const message: AgentMessage = { role: "assistant", content, rawParts: parts };
       return { message, requestsToolCalls: false };
     }
 
@@ -278,8 +279,14 @@ export class GeminiProvider implements LLMProvider {
       if (msg.role === "user") {
         contents.push({ role: "user", parts: [{ text: msg.content }] });
       } else if (msg.role === "assistant") {
-        if (msg.toolCalls && msg.toolCalls.length > 0) {
-          // Gemini function call response format
+        if (msg.rawParts && Array.isArray(msg.rawParts) && msg.rawParts.length > 0) {
+          // Preserve exact parts from Gemini (crucial for thought_signatures in 2.5/3.x)
+          contents.push({
+            role: "model",
+            parts: msg.rawParts,
+          });
+        } else if (msg.toolCalls && msg.toolCalls.length > 0) {
+          // Fallback if rawParts wasn't saved (e.g. offline mock or other source)
           contents.push({
             role: "model",
             parts: msg.toolCalls.map((tc) => ({

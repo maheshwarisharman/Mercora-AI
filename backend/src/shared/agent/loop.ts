@@ -91,7 +91,9 @@ export async function runAgentLoop<T>(params: RunAgentLoopParams): Promise<Agent
     // Execute each requested tool call
     const toolCalls = stepResult.message.toolCalls || [];
     for (const tc of toolCalls) {
-      const impl = toolImplementations[tc.name];
+      const impl =
+        toolImplementations[tc.name] ||
+        toolImplementations[tc.name.replace(/^[a-zA-Z0-9_-]+:/, "")];
       let result: unknown;
 
       if (!impl) {

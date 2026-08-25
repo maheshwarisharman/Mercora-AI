@@ -33,6 +33,8 @@ export interface AgentMessage {
   toolCalls?: { id: string; name: string; arguments: Record<string, unknown> }[];
   /** Set on 'tool' role messages: which call ID this result answers. */
   toolCallId?: string;
+  /** Preserved raw parts from model response (required for thought_signatures / reasoning parts in Gemini 2.5 / 3.x) */
+  rawParts?: unknown[];
 }
 
 export interface AgentStepRequest {
