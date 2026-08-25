@@ -2,28 +2,64 @@ import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { getServiceSupabase } from "../../../shared/db/supabase";
 import { getLLMProvider } from "../../../shared/llm";
+import { runAgentLoop } from "../../../shared/agent/loop";
+import { financeToolDefinitions, createFinanceToolImplementations } from "../../../shared/agent/tools/registry";
+import type { AgentTraceStep } from "../../../shared/llm/types";
 import { writeAuditLog } from "../shared/audit";
-import { retrieveCandidateEvidence, type CandidateEvidence } from "./retrieval";
-import type { NormalizedEvent } from "../shared/types";
+import { validateEvidenceAgainstTrace, validateEvidenceIds } from "./validate";
 
-const InvestigateOutputSchema = z.object({
-  selected_evidence_refs: z.array(z.string()).describe("List of exact source_refs from provided candidates that explain this variance"),
-  reasoning: z.string().describe("Detailed factual explanation of why the selected evidence items account for the variance"),
+// ─── Final answer schema (same contract as Batch 4) ───────────────────────────
+
+const JudgmentClassificationEnum = z.enum([
+  "MATCHED",
+  "MATCHED_WITH_ADJUSTMENT",
+  "TIMING_DIFFERENCE",
+  "FEE",
+  "REFUND",
+  "DUPLICATE",
+  "MISSING_RECORD",
+  "UNEXPLAINED",
+  "REQUIRES_HUMAN_REVIEW",
+]);
+
+export type JudgmentClassification = z.infer<typeof JudgmentClassificationEnum>;
+
+const ExceptionJudgmentSchema = z.object({
+  classification: JudgmentClassificationEnum,
+  confidence: z.number().min(0).max(100),
+  explanation: z.string(),
+  evidence_ids: z
+    .array(z.string())
+    .describe("source_refs of evidence items cited — must only reference items returned by search_evidence during this run"),
+  recommended_action: z.string(),
 });
 
-export type InvestigateOutput = z.infer<typeof InvestigateOutputSchema>;
+export type ExceptionJudgment = z.infer<typeof ExceptionJudgmentSchema>;
 
 export interface InvestigateResult {
   exception_id: string;
-  selected_candidates: CandidateEvidence[];
-  evidence_rows_created: number;
-  reasoning: string;
+  judgment_id: string;
+  classification: JudgmentClassification;
+  confidence: number;
+  explanation: string;
+  evidence_ids: string[];
+  recommended_action: string;
+  trace: AgentTraceStep[];
+  hitStepBudget: boolean;
   model: string;
 }
 
+const CLASSIFICATIONS_REQUIRING_EVIDENCE = new Set([
+  "MATCHED_WITH_ADJUSTMENT",
+  "REFUND",
+  "FEE",
+  "DUPLICATE",
+]);
+
 /**
- * Investigates an exception by retrieving candidate evidence and prompting the LLM
- * provider to select ground-truth explanations without hallucination.
+ * Investigates a reconciliation exception using the agentic loop.
+ * The model decides what to look at turn by turn; this function just sets up
+ * the context and enforces the hallucination guard on the way out.
  */
 export async function runExceptionInvestigation(params: {
   exceptionId: string;
@@ -32,7 +68,7 @@ export async function runExceptionInvestigation(params: {
   const { exceptionId, merchantId } = params;
   const supabase = getServiceSupabase();
 
-  // 1. Fetch Exception Row
+  // Fetch exception for system prompt context
   const { data: exception, error: exErr } = await supabase
     .schema("finance")
     .from("exceptions")
@@ -44,149 +80,200 @@ export async function runExceptionInvestigation(params: {
     throw new Error(`Exception not found: ${exErr?.message}`);
   }
 
-  // 2. Fetch Linked Normalized Events
-  const eventIds = exception.normalized_event_ids || [];
-  let linkedEvents: NormalizedEvent[] = [];
-  if (eventIds.length > 0) {
-    const { data: evts, error: evErr } = await supabase
-      .schema("finance")
-      .from("normalized_events")
-      .select("*")
-      .in("id", eventIds);
+  const llm = getLLMProvider("judge");
 
-    if (!evErr && evts) {
-      linkedEvents = evts as NormalizedEvent[];
-    }
-  }
+  const systemPrompt = `You are the Mercora Finance Investigation Agent — an autonomous reconciliation analyst.
 
-  // 3. Deterministic Evidence Retrieval
-  const difference = Math.abs(Number(exception.difference) || 0);
-  const candidates = retrieveCandidateEvidence({
-    difference,
-    linkedEvents,
-  });
+Your task is to investigate a financial reconciliation exception and classify it with supporting evidence.
 
-  const candidateRefMap = new Map<string, CandidateEvidence>();
-  candidates.forEach((c) => candidateRefMap.set(c.source_ref, c));
+AVAILABLE TOOLS:
+- get_exception_details: Fetch the exception row and linked transaction events. Call this first.
+- get_transaction_chain: Trace the full SALE→PAYMENT→SETTLEMENT→BANK chain for an order.
+- search_evidence: Search support tickets and refund records with filters you choose.
+- request_human_review: Escalate when evidence is genuinely insufficient after investigation.
 
-  // 4. LLM Call via Provider Abstraction
-  const llm = getLLMProvider("investigate");
+INVESTIGATION PROTOCOL:
+1. Always start with get_exception_details to understand the discrepancy.
+2. Use get_transaction_chain to verify the payment chain if order refs are available.
+3. Use search_evidence with specific filters based on what you've learned — not blindly.
+4. If evidence clearly explains the discrepancy, proceed to a confident classification.
+5. If evidence is genuinely absent or ambiguous after searching, call request_human_review.
 
-  const systemPrompt = `You are the Mercora Finance Investigation Agent.
-Your role is to analyze a financial reconciliation exception and determine which, if any, of the candidate business documents (support tickets, refund records) explain the discrepancy.
-CRITICAL RULES:
-1. Grounding: You must ONLY select evidence items from the provided candidate list. Never invent or hallucinate citations or source references.
-2. Factuality: If none of the candidates explain the discrepancy, return an empty array for selected_evidence_refs.
-3. No Arithmetic fabrication: Do not invent numbers, adjustments, or events not present in the candidates.`;
+CRITICAL RULES — THESE ARE NON-NEGOTIABLE:
+- You must NEVER state a cause you did not verify via a tool call.
+- evidence_ids in your final answer must ONLY be source_refs returned by search_evidence during THIS investigation.
+- If no tool call returned evidence explaining the variance, classify as UNEXPLAINED or call request_human_review.
+- Do not fabricate order references, amounts, dates, or evidence items.
+- Confidence scores must reflect actual evidence quality — not optimism.`;
 
-  const userPrompt = `Reconciliation Exception Context:
+  const initialUserMessage = `Investigate this exception:
 - Exception ID: ${exception.id}
-- Exception Type: ${exception.exception_type}
+- Type: ${exception.exception_type}
 - Expected Amount: ₹${Number(exception.expected_amount).toFixed(2)}
 - Actual Amount: ₹${Number(exception.actual_amount).toFixed(2)}
-- Variance / Difference: ₹${Number(exception.difference).toFixed(2)}
+- Discrepancy: ₹${Number(exception.difference).toFixed(2)}
 
-Linked Transaction Events in Chain:
-${linkedEvents
-  .map(
-    (e) =>
-      `• [${e.event_type}] Source: ${e.source_system}, Ref: ${e.external_ref || "N/A"}, Amount: ₹${Number(e.amount).toFixed(2)}, Date: ${e.event_date}, Counterparty: ${e.counterparty || "N/A"}`
-  )
-  .join("\n")}
+Use your tools to investigate. Call get_exception_details first to see the full context, then decide what to look at next.`;
 
-Candidate Evidence Shortlist:
-${
-  candidates.length === 0
-    ? "(No candidates found)"
-    : candidates
-        .map(
-          (c) =>
-            `[${c.source_ref}] Type: ${c.source_type} | Date: ${c.date} | Amount: ${c.amount ? `₹${c.amount}` : "N/A"} | Subject: ${c.title}\nContent: "${c.content}"`
-        )
-        .join("\n\n")
-}
+  const finalResponseSchema = zodToJsonSchema(ExceptionJudgmentSchema as any, "ExceptionJudgment");
 
-Evaluate the candidates. Return JSON matching the schema with selected_evidence_refs and reasoning.`;
-
-  const responseJsonSchema = zodToJsonSchema(InvestigateOutputSchema as any, "InvestigateOutput");
-
-  const completion = await llm.generateStructured<InvestigateOutput>({
+  // Run the agent loop
+  const loopResult = await runAgentLoop<ExceptionJudgment>({
     systemPrompt,
-    userPrompt,
-    responseSchema: responseJsonSchema,
-    temperature: 0.1,
+    initialUserMessage,
+    tools: financeToolDefinitions,
+    toolImplementations: createFinanceToolImplementations({ merchantId, missionId: exception.mission_id }),
+    maxSteps: 6,
+    finalResponseSchema,
+    llmProvider: llm,
+    auditContext: {
+      merchantId,
+      missionId: exception.mission_id,
+      entityType: "finance.exceptions",
+      entityId: exceptionId,
+    },
   });
 
-  // Validate output shape with Zod runtime validator
-  const validatedOutput = InvestigateOutputSchema.parse(completion.data);
+  // ── Normalize LLM output ───────────────────────────────────────────────────
+  const raw = loopResult.finalAnswer as Record<string, any>;
+  const normalized = {
+    classification: raw.classification,
+    confidence: raw.confidence ?? raw.confidence_score ?? raw.confidence_pct ?? 0,
+    explanation: raw.explanation ?? raw.summary ?? raw.reasoning ?? "",
+    evidence_ids: raw.evidence_ids ?? raw.cited_evidence_ids ?? raw.evidenceIds ?? [],
+    recommended_action: raw.recommended_action ?? raw.action ?? raw.recommendation ?? "Review manually in financial portal.",
+  };
 
-  // 5. Anti-Hallucination Guardrail: strictly filter to provided candidates
-  const validSelectedCandidates: CandidateEvidence[] = [];
-  for (const ref of validatedOutput.selected_evidence_refs) {
-    const candidate = candidateRefMap.get(ref);
-    if (candidate) {
-      validSelectedCandidates.push(candidate);
-    } else {
-      console.warn(`[Anti-Hallucination] Dropping non-candidate evidence ref: ${ref}`);
+  let judgment: ExceptionJudgment;
+  try {
+    judgment = ExceptionJudgmentSchema.parse(normalized);
+  } catch (parseErr: any) {
+    throw new Error(`Invalid judgment shape from agent loop: ${parseErr.message}`);
+  }
+
+  // ── Hallucination guard (Batch 5 — stricter): validate against this run's trace ──
+  const { validRefs, droppedRefs } = validateEvidenceAgainstTrace({
+    citedSourceRefs: judgment.evidence_ids,
+    trace: loopResult.trace,
+  });
+
+  if (droppedRefs.length > 0) {
+    console.warn(
+      `[HallucinationGuard] Exception ${exceptionId}: dropped ${droppedRefs.length} evidence ref(s) not seen in trace.`
+    );
+  }
+
+  // ── DB constraint safeguard ────────────────────────────────────────────────
+  let finalClassification = judgment.classification;
+  let finalExplanation = judgment.explanation;
+
+  if (CLASSIFICATIONS_REQUIRING_EVIDENCE.has(finalClassification) && validRefs.length === 0) {
+    console.warn(
+      `[Judge Safeguard] Classification ${finalClassification} requires evidence but none validated. Downgrading.`
+    );
+    finalClassification = "REQUIRES_HUMAN_REVIEW";
+    finalExplanation = `[Downgraded from ${judgment.classification} — no verified evidence in trace]: ${judgment.explanation}`;
+  }
+
+  // ── Delete stale evidence, insert freshly found evidence ──────────────────
+  await supabase.schema("finance").from("evidence").delete().eq("exception_id", exceptionId);
+
+  let insertedEvidenceIds: string[] = [];
+
+  if (validRefs.length > 0) {
+    // Reconstruct evidence rows from search_evidence trace results
+    const searchResults: any[] = [];
+    for (const step of loopResult.trace) {
+      if (step.toolName !== "search_evidence") continue;
+      const result = step.result as any;
+      if (result?.results) searchResults.push(...result.results);
+    }
+
+    const evidenceRows = validRefs
+      .map((ref) => {
+        const item = searchResults.find((r: any) => r.source_ref === ref);
+        if (!item) return null;
+        return {
+          exception_id: exceptionId,
+          source_type: item.source_type,
+          content: item.content,
+          source_ref: item.source_ref,
+          relevance_score: item.relevance_score,
+          found_by: "agent_loop",
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
+
+    if (evidenceRows.length > 0) {
+      const { data: insertedRows, error: evInsertErr } = await supabase
+        .schema("finance")
+        .from("evidence")
+        .insert(evidenceRows)
+        .select("id, source_ref");
+
+      if (evInsertErr) {
+        throw new Error(`Failed to save evidence: ${evInsertErr.message}`);
+      }
+
+      insertedEvidenceIds = (insertedRows || []).map((r: any) => r.id);
     }
   }
 
-  // 6. Delete old evidence for this exception and insert newly verified evidence
-  await supabase
-    .schema("finance")
-    .from("evidence")
-    .delete()
-    .eq("exception_id", exceptionId);
+  // ── Update exception status ────────────────────────────────────────────────
+  const newStatus =
+    finalClassification !== "UNEXPLAINED" && finalClassification !== "REQUIRES_HUMAN_REVIEW"
+      ? "explained"
+      : "requires_human_review";
 
-  if (validSelectedCandidates.length > 0) {
-    const evidenceRows = validSelectedCandidates.map((c) => ({
+  await supabase.schema("finance").from("exceptions").update({ status: newStatus }).eq("id", exceptionId);
+
+  // ── Insert judgment row ────────────────────────────────────────────────────
+  const { data: judgmentRow, error: jErr } = await supabase
+    .schema("finance")
+    .from("exception_judgments")
+    .insert({
       exception_id: exceptionId,
-      source_type: c.source_type,
-      content: c.content,
-      source_ref: c.source_ref,
-      relevance_score: c.relevance_score,
-      found_by: "gemini_retrieval",
-    }));
+      classification: finalClassification,
+      confidence: judgment.confidence,
+      explanation: finalExplanation,
+      evidence_ids: insertedEvidenceIds,
+      recommended_action: judgment.recommended_action,
+    })
+    .select("*")
+    .single();
 
-    const { error: evInsertErr } = await supabase
-      .schema("finance")
-      .from("evidence")
-      .insert(evidenceRows);
-
-    if (evInsertErr) {
-      console.error("Error inserting evidence:", evInsertErr);
-      throw new Error(`Failed to save evidence: ${evInsertErr.message}`);
-    }
+  if (jErr || !judgmentRow) {
+    throw new Error(`Failed to record exception judgment: ${jErr?.message}`);
   }
 
-  // 7. Update Exception Status
-  await supabase
-    .schema("finance")
-    .from("exceptions")
-    .update({ status: "investigating" })
-    .eq("id", exceptionId);
-
-  // 8. Write Audit Log Entry
+  // ── Write final audit entry ────────────────────────────────────────────────
   await writeAuditLog({
     merchant_id: merchantId,
     mission_id: exception.mission_id,
     actor_type: "gemini",
-    actor_id: completion.model,
-    action: "exception.investigated",
-    entity_type: "finance.exceptions",
-    entity_id: exceptionId,
+    actor_id: llm.name,
+    action: "exception.judged",
+    entity_type: "finance.exception_judgments",
+    entity_id: judgmentRow.id,
     after: {
-      selected_evidence_count: validSelectedCandidates.length,
-      selected_refs: validSelectedCandidates.map((c) => c.source_ref),
-      reasoning: validatedOutput.reasoning,
+      classification: finalClassification,
+      confidence: judgment.confidence,
+      evidence_ids_count: insertedEvidenceIds.length,
+      trace_steps: loopResult.trace.length,
+      hit_step_budget: loopResult.hitStepBudget,
     },
   });
 
   return {
     exception_id: exceptionId,
-    selected_candidates: validSelectedCandidates,
-    evidence_rows_created: validSelectedCandidates.length,
-    reasoning: validatedOutput.reasoning,
-    model: completion.model,
+    judgment_id: judgmentRow.id,
+    classification: finalClassification,
+    confidence: judgment.confidence,
+    explanation: finalExplanation,
+    evidence_ids: insertedEvidenceIds,
+    recommended_action: judgment.recommended_action,
+    trace: loopResult.trace,
+    hitStepBudget: loopResult.hitStepBudget,
+    model: llm.name,
   };
 }

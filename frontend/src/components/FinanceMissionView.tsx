@@ -18,7 +18,12 @@ import {
   ArrowLeft,
   FileText,
   X,
+  Send,
+  MessageSquare,
+  Bot,
+  User,
 } from "lucide-react";
+import { ReasoningTrace, type AgentTraceStep } from "./ReasoningTrace";
 
 interface FinanceMission {
   id: string;
@@ -98,6 +103,24 @@ interface ExceptionJudgment {
   generated_at: string;
 }
 
+interface AgentMessage {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string;
+  toolCalls?: { id: string; name: string; arguments: Record<string, unknown> }[];
+  toolCallId?: string;
+}
+
+interface QAMessage {
+  role: "user" | "assistant";
+  content: string;
+  trace?: AgentTraceStep[];
+  hitStepBudget?: boolean;
+  citedExceptionIds?: string[];
+  citedEvidenceIds?: string[];
+  couldNotAnswer?: boolean;
+  isLoading?: boolean;
+}
+
 interface MissionException {
   id: string;
   mission_id: string;
@@ -175,6 +198,18 @@ export const FinanceMissionView: React.FC = () => {
   const [expandedExceptionId, setExpandedExceptionId] = useState<string | null>(null);
   const [explainingExceptionId, setExplainingExceptionId] = useState<string | null>(null);
   const [selectedSignalsMatch, setSelectedSignalsMatch] = useState<ReconciledMatch | null>(null);
+  const [exceptionTraces, setExceptionTraces] = useState<Record<string, AgentTraceStep[]>>({});
+  const [exceptionBudgetHit, setExceptionBudgetHit] = useState<Record<string, boolean>>({});
+  const exceptionRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+
+  // Settlement Q&A State
+  const [qaMessages, setQaMessages] = useState<QAMessage[]>([]);
+  const [qaInput, setQaInput] = useState("");
+  const [qaConversationHistory, setQaConversationHistory] = useState<AgentMessage[]>([]);
+  const [qaSending, setQaSending] = useState(false);
+  const [qaError, setQaError] = useState<string | null>(null);
+  const [highlightedExceptionId, setHighlightedExceptionId] = useState<string | null>(null);
+  const qaBottomRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch all missions from backend
   const fetchMissions = async () => {
@@ -486,7 +521,7 @@ export const FinanceMissionView: React.FC = () => {
     }
   };
 
-  // 5. "Explain this difference" Handler (Chains Investigate -> Judge)
+  // 5. "Explain this difference" Handler (Agent loop investigation)
   const handleExplainDifference = async (exceptionId: string) => {
     if (!activeMission) return;
 
@@ -501,7 +536,14 @@ export const FinanceMissionView: React.FC = () => {
         throw new Error(data.message || data.error || "Failed to explain exception");
       }
 
-      // Refresh exceptions list with newly attached judgment and evidence
+      // Store the agent trace for this exception
+      if (data.data?.trace) {
+        setExceptionTraces((prev) => ({ ...prev, [exceptionId]: data.data.trace }));
+      }
+      if (data.data?.hitStepBudget !== undefined) {
+        setExceptionBudgetHit((prev) => ({ ...prev, [exceptionId]: data.data.hitStepBudget }));
+      }
+
       await loadMissionData(activeMission.id);
       setExpandedExceptionId(exceptionId);
     } catch (err: any) {
@@ -509,6 +551,60 @@ export const FinanceMissionView: React.FC = () => {
     } finally {
       setExplainingExceptionId(null);
     }
+  };
+
+  // 6. Settlement Q&A Handler
+  const handleAskQuestion = async () => {
+    if (!activeMission || !qaInput.trim() || qaSending) return;
+
+    const question = qaInput.trim();
+    setQaInput("");
+    setQaError(null);
+    setQaSending(true);
+
+    setQaMessages((prev) => [...prev, { role: "user", content: question }]);
+    setQaMessages((prev) => [...prev, { role: "assistant", content: "", isLoading: true }]);
+
+    try {
+      const res = await fetchWithAuth(`/api/finance/missions/${activeMission.id}/ask`, {
+        method: "POST",
+        body: JSON.stringify({ question, conversationHistory: qaConversationHistory }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error || "Q&A request failed");
+      }
+
+      const result = data.data;
+      const assistantMsg: QAMessage = {
+        role: "assistant",
+        content: result.answer,
+        trace: result.trace,
+        hitStepBudget: result.hitStepBudget,
+        citedExceptionIds: result.citedExceptionIds,
+        citedEvidenceIds: result.citedEvidenceIds,
+        couldNotAnswer: result.couldNotAnswer,
+        isLoading: false,
+      };
+
+      setQaMessages((prev) => [...prev.slice(0, -1), assistantMsg]);
+      setQaConversationHistory(result.updatedConversationHistory || []);
+      setTimeout(() => qaBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    } catch (err: any) {
+      setQaMessages((prev) => prev.slice(0, -1));
+      setQaError(err.message || "Failed to get answer");
+    } finally {
+      setQaSending(false);
+    }
+  };
+
+  // Scroll to + highlight a cited exception row
+  const scrollToException = (exceptionId: string) => {
+    setHighlightedExceptionId(exceptionId);
+    setExpandedExceptionId(exceptionId);
+    exceptionRowRefs.current[exceptionId]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => setHighlightedExceptionId(null), 2500);
   };
 
   // Filtered Events calculation
@@ -1112,10 +1208,17 @@ export const FinanceMissionView: React.FC = () => {
                         const isExplaining = explainingExceptionId === ex.id;
                         const latestJudgment = ex.exception_judgments?.[0];
                         const evidenceList = ex.evidence || [];
+                        const exTrace = exceptionTraces[ex.id];
+                        const hitBudget = exceptionBudgetHit[ex.id];
+                        const isHumanReview = latestJudgment?.classification === "REQUIRES_HUMAN_REVIEW";
+                        const isHighlighted = highlightedExceptionId === ex.id;
 
                         return (
                           <React.Fragment key={ex.id}>
-                            <tr>
+                            <tr
+                              ref={(el) => { exceptionRowRefs.current[ex.id] = el; }}
+                              style={isHighlighted ? { outline: "2px solid #6366f1", outlineOffset: "-2px", background: "#eef2ff" } : {}}
+                            >
                               <td>
                                 <span className={`exception-badge ${ex.exception_type}`}>
                                   {ex.exception_type.replace(/_/g, " ")}
@@ -1218,6 +1321,32 @@ export const FinanceMissionView: React.FC = () => {
                                       </div>
                                     </div>
 
+                                    {/* Budget Reached / Human Review Banner */}
+                                    {(hitBudget || isHumanReview) && (
+                                      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-amber-800">
+                                        <ShieldAlert size={18} className="shrink-0 mt-0.5" />
+                                        <div>
+                                          <strong className="text-sm font-semibold">
+                                            {isHumanReview ? "Escalated for Human Review" : "Investigation Budget Reached"}
+                                          </strong>
+                                          <p className="text-xs mt-0.5 text-amber-700">
+                                            {isHumanReview
+                                              ? "The agent determined evidence was insufficient to classify this exception confidently. A human analyst should review it."
+                                              : "The agent exhausted its 6-step investigation budget. The best available answer was committed, but confidence may be lower than usual."}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Agent Reasoning Trace */}
+                                    {exTrace && exTrace.length > 0 && (
+                                      <ReasoningTrace
+                                        trace={exTrace}
+                                        hitStepBudget={hitBudget}
+                                        className="mb-4"
+                                      />
+                                    )}
+
                                     {/* RICH JUDGMENT EXPLANATION CARD (Killer Feature UI) */}
                                     {latestJudgment && (
                                       <div className="judgment-card">
@@ -1225,6 +1354,9 @@ export const FinanceMissionView: React.FC = () => {
                                           <div className="judgment-title-row">
                                             <span className={"font-bold"}>
                                               {latestJudgment.classification.replace(/_/g, " ")}
+                                            </span>
+                                            <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                              {latestJudgment.confidence}% confidence
                                             </span>
                                           </div>
                                         </div>
@@ -1278,6 +1410,168 @@ export const FinanceMissionView: React.FC = () => {
                       })}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {/* SETTLEMENT Q&A PANEL */}
+            {exceptions.length > 0 && (
+              <div className="mt-8 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/40 to-slate-50 overflow-hidden shadow-sm">
+                {/* Panel header */}
+                <div className="px-5 pt-5 pb-4 border-b border-indigo-100">
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm">
+                      <Bot size={16} className="text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800">Settlement Q&amp;A</h4>
+                      <p className="text-xs text-slate-500">
+                        Ask anything about this mission — the agent uses its tools to answer and shows its reasoning.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message list */}
+                <div className="px-5 py-4 space-y-4 max-h-[480px] overflow-y-auto">
+                  {qaMessages.length === 0 && (
+                    <div className="py-8 text-center">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center mx-auto mb-3">
+                        <MessageSquare size={22} className="text-indigo-400" />
+                      </div>
+                      <p className="text-sm font-semibold text-slate-600 mb-1">Ask about this mission</p>
+                      <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                        Try: "What needs my attention?", "How much is unresolved?", or "Why did Razorpay settle less than expected?"
+                      </p>
+                    </div>
+                  )}
+
+                  {qaMessages.map((msg, i) => (
+                    <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                      {/* Avatar */}
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                        msg.role === "user"
+                          ? "bg-slate-800 text-white"
+                          : "bg-indigo-600 text-white"
+                      }`}>
+                        {msg.role === "user" ? <User size={13} /> : <Bot size={13} />}
+                      </div>
+
+                      {/* Bubble */}
+                      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                        msg.role === "user"
+                          ? "bg-slate-800 text-white rounded-tr-sm"
+                          : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm"
+                      }`}>
+                        {msg.isLoading ? (
+                          <div className="flex items-center gap-1.5 py-1">
+                            {[0, 1, 2].map((d) => (
+                              <div
+                                key={d}
+                                className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce"
+                                style={{ animationDelay: `${d * 0.15}s` }}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <>
+                            {/* Out-of-scope banner */}
+                            {msg.couldNotAnswer && (
+                              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+                                <AlertCircle size={13} className="shrink-0" />
+                                <span>Out of scope — I can only answer questions about this mission's reconciliation data.</span>
+                              </div>
+                            )}
+
+                            <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+
+                            {/* Cited exception chips */}
+                            {msg.citedExceptionIds && msg.citedExceptionIds.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2.5 border-t border-slate-100">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Exceptions:</span>
+                                {msg.citedExceptionIds.map((id) => (
+                                  <button
+                                    key={id}
+                                    onClick={() => scrollToException(id)}
+                                    className="text-[11px] font-mono font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-full px-2.5 py-0.5 transition-colors cursor-pointer"
+                                    title="Click to scroll to this exception"
+                                  >
+                                    #{id.slice(0, 8)}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Cited evidence chips */}
+                            {msg.citedEvidenceIds && msg.citedEvidenceIds.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-slate-100">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Evidence:</span>
+                                {msg.citedEvidenceIds.map((ref) => (
+                                  <span key={ref} className="text-[11px] font-mono font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
+                                    {ref}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Reasoning trace */}
+                            {msg.trace && msg.trace.length > 0 && (
+                              <ReasoningTrace
+                                trace={msg.trace}
+                                hitStepBudget={msg.hitStepBudget}
+                                className="mt-3"
+                              />
+                            )}
+
+                            {/* Budget banner */}
+                            {msg.hitStepBudget && !msg.couldNotAnswer && (
+                              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                                <ShieldAlert size={13} className="shrink-0" />
+                                <span>Investigation budget reached — answer may be incomplete.</span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Error */}
+                  {qaError && (
+                    <div className="flex items-center gap-2 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">
+                      <AlertCircle size={14} className="shrink-0" />
+                      <span>{qaError}</span>
+                    </div>
+                  )}
+
+                  <div ref={qaBottomRef} />
+                </div>
+
+                {/* Input row */}
+                <div className="px-5 pb-5 pt-3 border-t border-indigo-100 flex gap-2">
+                  <input
+                    type="text"
+                    id="qa-question-input"
+                    value={qaInput}
+                    onChange={(e) => setQaInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAskQuestion(); } }}
+                    placeholder="Ask about this mission's reconciliation..."
+                    disabled={qaSending}
+                    className="flex-1 text-sm bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent disabled:opacity-60 transition-all"
+                  />
+                  <button
+                    onClick={handleAskQuestion}
+                    disabled={qaSending || !qaInput.trim()}
+                    id="qa-send-button"
+                    aria-label="Send question"
+                    className="w-10 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shadow-sm shrink-0"
+                  >
+                    {qaSending ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Send size={16} />
+                    )}
+                  </button>
                 </div>
               </div>
             )}

@@ -2,13 +2,12 @@ import { Router, type Response } from "express";
 import type { AuthenticatedRequest } from "../../../middleware/auth";
 import { getServiceSupabase, getOrCreateMerchant } from "../../../shared/db/supabase";
 import { runExceptionInvestigation } from "../investigate/run";
-import { runExceptionJudgment } from "../judge/classify";
 
 export const exceptionsRouter = Router();
 
 /**
  * GET /api/finance/missions/:id/exceptions
- * Retrieves all detected exceptions for a mission with linked event IDs.
+ * Retrieves all detected exceptions for a mission with linked evidence and judgments.
  */
 exceptionsRouter.get(
   "/missions/:id/exceptions",
@@ -22,7 +21,7 @@ exceptionsRouter.get(
         return;
       }
 
-      const merchant = await getOrCreateMerchant(authUserId, req.user?.user_metadata);
+      await getOrCreateMerchant(authUserId, req.user?.user_metadata);
       const supabase = getServiceSupabase();
 
       const { data: exceptions, error } = await supabase
@@ -55,8 +54,8 @@ exceptionsRouter.get(
 
 /**
  * POST /api/finance/exceptions/:exceptionId/explain
- * The Killer Interaction: Chains retrieval -> investigate LLM -> judge LLM
- * to explain an exception on-demand and attach supporting evidence.
+ * Runs the agentic investigation loop to explain an exception on-demand.
+ * Same external contract as Batch 4; response now includes `trace` and `hitStepBudget`.
  */
 exceptionsRouter.post(
   "/exceptions/:exceptionId/explain",
@@ -73,19 +72,13 @@ exceptionsRouter.post(
       const merchant = await getOrCreateMerchant(authUserId, req.user?.user_metadata);
       const supabase = getServiceSupabase();
 
-      // 1. Run Investigate Stage (Retrieval + Evidence Selection + DB Insert)
+      // Run the agentic investigation loop (replaces separate investigate + judge calls)
       const investigateResult = await runExceptionInvestigation({
         exceptionId,
         merchantId: merchant.id,
       });
 
-      // 2. Run Judge Stage (Classification + Judgment Insert)
-      const judgeResult = await runExceptionJudgment({
-        exceptionId,
-        merchantId: merchant.id,
-      });
-
-      // 3. Fetch Fresh Exception Row with Attached Evidence and Judgment
+      // Fetch the updated exception row with attached evidence and judgment
       const { data: updatedException, error: fetchErr } = await supabase
         .schema("finance")
         .from("exceptions")
@@ -98,17 +91,27 @@ exceptionsRouter.post(
         .single();
 
       if (fetchErr) {
-        throw new Error(`Failed to load updated exception details: ${fetchErr.message}`);
+        throw new Error(`Failed to load updated exception: ${fetchErr.message}`);
       }
 
       res.status(200).json({
         success: true,
-        message: "Exception investigation and judgment completed successfully",
+        message: "Exception investigation completed successfully",
         data: {
           exception: updatedException,
-          investigation: investigateResult,
-          judgment: judgeResult,
-          evidence: (updatedException as any).evidence || [],
+          judgment: {
+            judgment_id: investigateResult.judgment_id,
+            classification: investigateResult.classification,
+            confidence: investigateResult.confidence,
+            explanation: investigateResult.explanation,
+            evidence_ids: investigateResult.evidence_ids,
+            recommended_action: investigateResult.recommended_action,
+            model: investigateResult.model,
+          },
+          // Agent trace — rendered by the frontend ReasoningTrace component
+          trace: investigateResult.trace,
+          hitStepBudget: investigateResult.hitStepBudget,
+          evidence: (updatedException as any)?.evidence || [],
         },
       });
     } catch (error: any) {
