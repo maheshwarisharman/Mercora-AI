@@ -1659,23 +1659,23 @@ export const FinanceMissionView: React.FC = () => {
             </div>
 
             {/* Events Data Table */}
-            <div className="table-responsive">
-              <table className="events-table">
+            <div className="w-full overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-xs">
+              <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr>
-                    <th>Event Type</th>
-                    <th>Source</th>
-                    <th>External Ref</th>
-                    <th>Amount (INR)</th>
-                    <th>Event Date</th>
-                    <th>Counterparty</th>
-                    <th title="Cross-source link to core.orders / core.payments / core.customers">Linked?</th>
+                  <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-4 py-3">Event Type</th>
+                    <th className="px-4 py-3">Source</th>
+                    <th className="px-4 py-3">External Ref</th>
+                    <th className="px-4 py-3">Amount (INR)</th>
+                    <th className="px-4 py-3">Event Date</th>
+                    <th className="px-4 py-3">Counterparty</th>
+                    <th className="px-4 py-3 text-center" title="Cross-source link to core.orders / core.payments / core.customers">Linked?</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {filteredEvents.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="table-empty">
+                      <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-400">
                         {events.length === 0
                           ? "No normalized events yet. Complete Step 3 above to extract and normalize."
                           : "No events match the selected filters."}
@@ -1685,26 +1685,28 @@ export const FinanceMissionView: React.FC = () => {
                     filteredEvents.map((evt) => {
                       const isLinked = !!(evt.order_id || evt.payment_id || evt.customer_id);
                       return (
-                        <tr key={evt.id}>
-                          <td>
+                        <tr key={evt.id} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="px-4 py-3">
                             <span className={`event-badge ${evt.event_type}`}>
                               {evt.event_type}
                             </span>
                           </td>
-                          <td>
+                          <td className="px-4 py-3 font-medium text-slate-700 capitalize">
                             <span className="source-tag">{evt.source_system}</span>
                           </td>
-                          <td>
+                          <td className="px-4 py-3">
                             <code className="ref-code">{evt.external_ref || "—"}</code>
                           </td>
-                          <td className="amount-cell">
+                          <td className="px-4 py-3 font-semibold text-slate-900 font-mono">
                             ₹{Number(evt.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </td>
-                          <td>{evt.event_date}</td>
-                          <td className="counterparty-cell">{evt.counterparty || "—"}</td>
-                          <td className="linked-cell">
+                          <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{evt.event_date}</td>
+                          <td className="px-4 py-3 text-slate-700 max-w-[220px] truncate" title={evt.counterparty || ""}>
+                            {evt.counterparty || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-center">
                             {isLinked ? (
-                              <span className="link-check" title="Linked to core orders/payments">
+                              <span className="link-check inline-flex items-center justify-center" title="Linked to core orders/payments">
                                 ✓
                               </span>
                             ) : (
