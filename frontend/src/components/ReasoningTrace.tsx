@@ -103,7 +103,7 @@ const TraceStep: React.FC<{ step: AgentTraceStep; index: number; isLast: boolean
       {/* Connector column */}
       <div className="flex flex-col items-center shrink-0">
         <div
-          className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-offset-1 z-10 ${toolBadgeClass(step.toolName)}`}
+          className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-offset-1 z-10 bg-black text-white`}
         >
           {index + 1}
         </div>
@@ -120,9 +120,8 @@ const TraceStep: React.FC<{ step: AgentTraceStep; index: number; isLast: boolean
           className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-slate-50/80 transition-colors group"
         >
           <div className="flex items-center gap-2 min-w-0">
-            <Wrench size={12} className="text-slate-400 shrink-0" />
             <span
-              className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ring-1 ${toolBadgeClass(step.toolName)}`}
+              className={`text-[11px] font-semibold px-2 py-0.5`}
             >
               {toolLabel(step.toolName)}
             </span>
