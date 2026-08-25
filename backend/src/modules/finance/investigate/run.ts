@@ -24,6 +24,60 @@ const JudgmentClassificationEnum = z.enum([
 
 export type JudgmentClassification = z.infer<typeof JudgmentClassificationEnum>;
 
+export const VALID_CLASSIFICATIONS = [
+  "MATCHED",
+  "MATCHED_WITH_ADJUSTMENT",
+  "TIMING_DIFFERENCE",
+  "FEE",
+  "REFUND",
+  "DUPLICATE",
+  "MISSING_RECORD",
+  "UNEXPLAINED",
+  "REQUIRES_HUMAN_REVIEW",
+] as const;
+
+export function normalizeClassification(raw: unknown): JudgmentClassification {
+  if (!raw || typeof raw !== "string") {
+    return "REQUIRES_HUMAN_REVIEW";
+  }
+
+  const cleaned = raw.toUpperCase().trim().replace(/[\s-]+/g, "_");
+
+  if ((VALID_CLASSIFICATIONS as readonly string[]).includes(cleaned)) {
+    return cleaned as JudgmentClassification;
+  }
+
+  if (cleaned.includes("TIMING") || cleaned.includes("DELAY")) {
+    return "TIMING_DIFFERENCE";
+  }
+  if (cleaned.includes("ADJUSTMENT") || cleaned.includes("GOODWILL") || cleaned.includes("MATCHED_WITH")) {
+    return "MATCHED_WITH_ADJUSTMENT";
+  }
+  if (cleaned.includes("FEE") || cleaned.includes("CHARGE")) {
+    return "FEE";
+  }
+  if (cleaned.includes("REFUND") || cleaned.includes("RETURN")) {
+    return "REFUND";
+  }
+  if (cleaned.includes("DUPLICATE") || cleaned.includes("DUPLICATION")) {
+    return "DUPLICATE";
+  }
+  if (cleaned.includes("MISSING") || cleaned.includes("NOT_FOUND")) {
+    return "MISSING_RECORD";
+  }
+  if (cleaned.includes("HUMAN") || cleaned.includes("REVIEW") || cleaned.includes("MANUAL") || cleaned.includes("ESCALAT")) {
+    return "REQUIRES_HUMAN_REVIEW";
+  }
+  if (cleaned.includes("UNEXPLAIN") || cleaned.includes("UNKNOWN") || cleaned.includes("UNRESOLVED") || cleaned.includes("DISCREPANCY")) {
+    return "UNEXPLAINED";
+  }
+  if (cleaned === "MATCH" || cleaned.includes("MATCHED")) {
+    return "MATCHED";
+  }
+
+  return "REQUIRES_HUMAN_REVIEW";
+}
+
 const ExceptionJudgmentSchema = z.object({
   classification: JudgmentClassificationEnum,
   confidence: z.number().min(0).max(100),
@@ -99,6 +153,17 @@ INVESTIGATION PROTOCOL:
 4. If evidence clearly explains the discrepancy, proceed to a confident classification.
 5. If evidence is genuinely absent or ambiguous after searching, call request_human_review.
 
+ALLOWED CLASSIFICATIONS:
+- MATCHED: Discrepancy fully explained by natural rounding or data alignment.
+- MATCHED_WITH_ADJUSTMENT: Discrepancy explained by verified manual adjustment/goodwill discount with attached evidence.
+- TIMING_DIFFERENCE: Settlement vs bank payout date delay.
+- FEE: Gateway processing or bank charge explanation.
+- REFUND: Verified customer refund or return record.
+- DUPLICATE: Repeated transaction row.
+- MISSING_RECORD: Missing settlement or bank leg without evidence.
+- UNEXPLAINED: No valid evidence found explaining the variance.
+- REQUIRES_HUMAN_REVIEW: Ambiguous, conflicting, or insufficient evidence.
+
 CRITICAL RULES — THESE ARE NON-NEGOTIABLE:
 - You must NEVER state a cause you did not verify via a tool call.
 - evidence_ids in your final answer must ONLY be source_refs returned by search_evidence during THIS investigation.
@@ -135,13 +200,22 @@ Use your tools to investigate. Call get_exception_details first to see the full 
   });
 
   // ── Normalize LLM output ───────────────────────────────────────────────────
-  const raw = loopResult.finalAnswer as Record<string, any>;
+  const raw = (loopResult.finalAnswer || {}) as Record<string, any>;
+  const rawConfidence = Number(raw.confidence ?? raw.confidence_score ?? raw.confidence_pct ?? 0);
   const normalized = {
-    classification: raw.classification,
-    confidence: raw.confidence ?? raw.confidence_score ?? raw.confidence_pct ?? 0,
-    explanation: raw.explanation ?? raw.summary ?? raw.reasoning ?? "",
-    evidence_ids: raw.evidence_ids ?? raw.cited_evidence_ids ?? raw.evidenceIds ?? [],
-    recommended_action: raw.recommended_action ?? raw.action ?? raw.recommendation ?? "Review manually in financial portal.",
+    classification: normalizeClassification(raw.classification),
+    confidence: isNaN(rawConfidence) ? 75 : Math.min(100, Math.max(0, rawConfidence)),
+    explanation: String(raw.explanation ?? raw.summary ?? raw.reasoning ?? "Investigation completed."),
+    evidence_ids: Array.isArray(raw.evidence_ids)
+      ? raw.evidence_ids.map((id: any) => String(id).trim()).filter(Boolean)
+      : Array.isArray(raw.cited_evidence_ids)
+      ? raw.cited_evidence_ids.map((id: any) => String(id).trim()).filter(Boolean)
+      : Array.isArray(raw.evidenceIds)
+      ? raw.evidenceIds.map((id: any) => String(id).trim()).filter(Boolean)
+      : [],
+    recommended_action: String(
+      raw.recommended_action ?? raw.recommendedAction ?? raw.action ?? raw.recommendation ?? "Review manually in financial portal."
+    ),
   };
 
   let judgment: ExceptionJudgment;

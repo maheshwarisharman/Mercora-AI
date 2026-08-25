@@ -4,6 +4,7 @@ import { getServiceSupabase } from "../../../shared/db/supabase";
 import { getLLMProvider } from "../../../shared/llm";
 import { writeAuditLog } from "../shared/audit";
 import type { NormalizedEvent } from "../shared/types";
+import { normalizeClassification } from "../investigate/run";
 
 const JudgmentClassificationEnum = z.enum([
   "MATCHED",
@@ -155,12 +156,21 @@ Evaluate and return the structured JSON judgment.`;
   // Normalize LLM output: models sometimes return variant field names
   // (e.g. "confidence_score" instead of "confidence") despite the schema hint.
   const raw = completion.data as Record<string, any>;
+  const rawConfidence = Number(raw?.confidence ?? raw?.confidence_score ?? raw?.confidence_pct ?? 0);
   const normalized = {
-    classification: raw.classification,
-    confidence: raw.confidence ?? raw.confidence_score ?? raw.confidence_pct ?? 0,
-    explanation: raw.explanation ?? raw.summary ?? raw.reasoning ?? "",
-    evidence_ids: raw.evidence_ids ?? raw.cited_evidence_ids ?? raw.evidenceIds ?? [],
-    recommended_action: raw.recommended_action ?? raw.recommendedAction ?? raw.action ?? raw.recommendation ?? "Review manually in financial portal.",
+    classification: normalizeClassification(raw?.classification),
+    confidence: isNaN(rawConfidence) ? 75 : Math.min(100, Math.max(0, rawConfidence)),
+    explanation: String(raw?.explanation ?? raw?.summary ?? raw?.reasoning ?? "Judgment completed."),
+    evidence_ids: Array.isArray(raw?.evidence_ids)
+      ? raw.evidence_ids.map((id: any) => String(id).trim()).filter(Boolean)
+      : Array.isArray(raw?.cited_evidence_ids)
+      ? raw.cited_evidence_ids.map((id: any) => String(id).trim()).filter(Boolean)
+      : Array.isArray(raw?.evidenceIds)
+      ? raw.evidenceIds.map((id: any) => String(id).trim()).filter(Boolean)
+      : [],
+    recommended_action: String(
+      raw?.recommended_action ?? raw?.recommendedAction ?? raw?.action ?? raw?.recommendation ?? "Review manually in financial portal."
+    ),
   };
 
   const validatedOutput = JudgeOutputSchema.parse(normalized);
