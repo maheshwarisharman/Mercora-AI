@@ -1103,19 +1103,19 @@ export const FinanceMissionView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="table-responsive">
-                  <table className="events-table">
+                <div className="w-full overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-xs">
+                  <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr>
-                        <th>Order Ref</th>
-                        <th>Match Type</th>
-                        <th>Confidence</th>
-                        <th>Status</th>
-                        <th>Chain Legs</th>
-                        <th>Signals Breakdown</th>
+                      <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                        <th className="px-4 py-3">Order Ref</th>
+                        <th className="px-4 py-3">Match Type</th>
+                        <th className="px-4 py-3">Confidence</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Chain Legs</th>
+                        <th className="px-4 py-3">Signals Breakdown</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-100">
                       {matches.map((m) => {
                         const linkedEvts = (m.event_ids || [])
                           .map((id) => eventMap.get(id))
@@ -1128,24 +1128,24 @@ export const FinanceMissionView: React.FC = () => {
                         const isMed = m.confidence >= 50 && m.confidence < 85;
 
                         return (
-                          <tr key={m.id}>
-                            <td>
+                          <tr key={m.id} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="px-4 py-3">
                               <code className="ref-code">{orderRef}</code>
                             </td>
-                            <td>
+                            <td className="px-4 py-3">
                               <span className="match-type-tag">{m.match_type.match("exact_id") ? "Exact" : "Fuzzy"}</span>
                             </td>
-                            <td>
+                            <td className="px-4 py-3 font-semibold text-slate-700">
                               <span>
                                 {m.confidence}%
                               </span>
                             </td>
-                            <td>
-                              <span>
-                                {m.status.replace("_", " ")}
+                            <td className="px-4 py-3">
+                              <span className="capitalize text-slate-600 font-medium">
+                                {m.status.replace(/_/g, " ")}
                               </span>
                             </td>
-                            <td>
+                            <td className="px-4 py-3">
                               <div className="flex gap-1">
                                 {linkedEvts.map((e) => (
                                   <span key={e.id} className={`event-badge ${e.event_type}`}>
@@ -1154,7 +1154,7 @@ export const FinanceMissionView: React.FC = () => {
                                 ))}
                               </div>
                             </td>
-                            <td>
+                            <td className="px-4 py-3">
                               <button
                                 onClick={() =>
                                   setSelectedSignalsMatch(
@@ -1190,19 +1190,19 @@ export const FinanceMissionView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="table-responsive">
-                  <table className="events-table">
+                <div className="w-full overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-xs">
+                  <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr>
-                        <th>Exception Type</th>
-                        <th>Expected Net</th>
-                        <th>Actual Amount</th>
-                        <th>Discrepancy</th>
-                        <th>Status</th>
-                        <th>Investigation & Explanation</th>
+                      <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                        <th className="px-4 py-3">Exception Type</th>
+                        <th className="px-4 py-3">Expected Net</th>
+                        <th className="px-4 py-3">Actual Amount</th>
+                        <th className="px-4 py-3">Discrepancy</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Investigation & Explanation</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-100">
                       {exceptions.map((ex) => {
                         const isExpanded = expandedExceptionId === ex.id;
                         const isExplaining = explainingExceptionId === ex.id;
@@ -1218,27 +1218,28 @@ export const FinanceMissionView: React.FC = () => {
                             <tr
                               ref={(el) => { exceptionRowRefs.current[ex.id] = el; }}
                               style={isHighlighted ? { outline: "2px solid #6366f1", outlineOffset: "-2px", background: "#eef2ff" } : {}}
+                              className="hover:bg-slate-50/60 transition-colors"
                             >
-                              <td>
+                              <td className="px-4 py-3">
                                 <span className={`exception-badge ${ex.exception_type}`}>
                                   {ex.exception_type.replace(/_/g, " ")}
                                 </span>
                               </td>
-                              <td className="amount-cell">
+                              <td className="px-4 py-3 font-semibold text-slate-900 font-mono">
                                 ₹{Number(ex.expected_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                               </td>
-                              <td className="amount-cell">
+                              <td className="px-4 py-3 font-semibold text-slate-900 font-mono">
                                 ₹{Number(ex.actual_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                               </td>
-                              <td className="amount-cell text-rose font-bold">
+                              <td className="px-4 py-3 font-bold text-rose-600 font-mono">
                                 ₹{Number(ex.difference).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                               </td>
-                              <td>
+                              <td className="px-4 py-3">
                                 <span className={`status-badge-sm ${ex.status}`}>
                                   {ex.status.replace(/_/g, " ")}
                                 </span>
                               </td>
-                              <td>
+                              <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => handleExplainDifference(ex.id)}
@@ -1260,12 +1261,10 @@ export const FinanceMissionView: React.FC = () => {
 
                                   <button
                                     onClick={() => setExpandedExceptionId(isExpanded ? null : ex.id)}
-                                    className="h-9 w-35 bg-slate-100 rounded-[6px]"
+                                    className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
                                   >
-                                    <div className="flex items-center justify-center gap-2">
-                                    <span className="ml-2">{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
+                                    <span>{isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
                                     <span>{isExpanded ? "Hide Details" : "Inspect Events"}</span>
-                                    </div>
                                   </button>
                                 </div>
                               </td>
@@ -1274,45 +1273,45 @@ export const FinanceMissionView: React.FC = () => {
                             {/* EXPANDED ROW: Linked Events and/or Rich Judgment Card */}
                             {isExpanded && (
                               <tr>
-                                <td colSpan={6} style={{ padding: 0 }}>
-                                  <div className="p-4 bg-slate-50 border-b border-slate-200">
+                                <td colSpan={6} className="p-0 bg-slate-50/50">
+                                  <div className="p-4 bg-slate-50 border-y border-slate-200">
                                     {/* Linked Events Subtable */}
                                     <div className="mb-4">
                                       <h5 className="inline-events-title">
                                         Linked Chain Events ({ex.normalized_event_ids?.length || 0})
                                       </h5>
-                                      <div className="table-responsive bg-white">
-                                        <table className="events-table">
+                                      <div className="w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-xs">
+                                        <table className="w-full text-left border-collapse text-xs">
                                           <thead>
-                                            <tr>
-                                              <th>Event Type</th>
-                                              <th>Source</th>
-                                              <th>Ref</th>
-                                              <th>Amount</th>
-                                              <th>Date</th>
-                                              <th>Counterparty</th>
+                                            <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                              <th className="px-3 py-2">Event Type</th>
+                                              <th className="px-3 py-2">Source</th>
+                                              <th className="px-3 py-2">Ref</th>
+                                              <th className="px-3 py-2">Amount</th>
+                                              <th className="px-3 py-2">Date</th>
+                                              <th className="px-3 py-2">Counterparty</th>
                                             </tr>
                                           </thead>
-                                          <tbody>
+                                          <tbody className="divide-y divide-slate-100">
                                             {(ex.normalized_event_ids || []).map((id) => {
                                               const evt = eventMap.get(id);
                                               if (!evt) return null;
                                               return (
-                                                <tr key={evt.id}>
-                                                  <td>
+                                                <tr key={evt.id} className="hover:bg-slate-50/60 transition-colors">
+                                                  <td className="px-3 py-2">
                                                     <span className={`event-badge ${evt.event_type}`}>
                                                       {evt.event_type}
                                                     </span>
                                                   </td>
-                                                  <td>{evt.source_system}</td>
-                                                  <td>
+                                                  <td className="px-3 py-2 capitalize font-medium text-slate-700">{evt.source_system}</td>
+                                                  <td className="px-3 py-2">
                                                     <code className="ref-code">{evt.external_ref || "—"}</code>
                                                   </td>
-                                                  <td className="amount-cell">
+                                                  <td className="px-3 py-2 font-semibold text-slate-900 font-mono">
                                                     ₹{Number(evt.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                                                   </td>
-                                                  <td>{evt.event_date}</td>
-                                                  <td>{evt.counterparty || "—"}</td>
+                                                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{evt.event_date}</td>
+                                                  <td className="px-3 py-2 text-slate-700">{evt.counterparty || "—"}</td>
                                                 </tr>
                                               );
                                             })}
