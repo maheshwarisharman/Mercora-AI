@@ -1,5 +1,5 @@
 import type { NormalizedEvent } from "../shared/types";
-import { computeLinkScore, getDateDiffDays } from "../reconcile/matcher";
+import { computeLinkScore, getDateDiffDays, type BankCreditResolution } from "../reconcile/matcher";
 
 export interface DetectedException {
   exception_type:
@@ -10,6 +10,7 @@ export interface DetectedException {
     | "duplicate"
     | "missing_settlement"
     | "missing_bank_credit"
+    | "ambiguous_bank_credit"
     | "unexplained_difference";
   normalized_event_ids: string[];
   expected_amount: number;
@@ -23,14 +24,43 @@ export interface DetectedException {
  * Scans normalized events and chain candidate links to identify gaps, timing delays,
  * duplicates, and unexplained variances.
  */
-export function detectMissionExceptions(events: NormalizedEvent[]): DetectedException[] {
+export function detectMissionExceptions(events: NormalizedEvent[], options: {
+  bankCreditResolutions?: BankCreditResolution[];
+  matchedBankEventIds?: Set<string>;
+} = {}): DetectedException[] {
   const exceptions: DetectedException[] = [];
 
-  const sales = events.filter((e) => e.event_type === "SALE");
-  const payments = events.filter((e) => e.event_type === "PAYMENT");
-  const fees = events.filter((e) => e.event_type === "FEE");
-  const settlements = events.filter((e) => e.event_type === "SETTLEMENT");
-  const bankTxns = events.filter((e) => e.event_type === "BANK_TRANSACTION");
+  // Disambiguation is intentionally represented as its own exception. A
+  // low-confidence bank assignment must not be converted into a guessed
+  // missing-bank or unexplained-difference exception by the legacy chain walk.
+  for (const resolution of options.bankCreditResolutions || []) {
+    const bankId = resolution.bank_credit.id;
+    if (!bankId || options.matchedBankEventIds?.has(bankId)) continue;
+    if (!["ambiguous", "no_candidates", "combined_batches", "insufficient_evidence"].includes(resolution.status)) continue;
+
+    const candidateIds = resolution.candidates.map((candidate) => candidate.candidate_id).filter(Boolean);
+    exceptions.push({
+      exception_type: "ambiguous_bank_credit",
+      normalized_event_ids: [bankId, ...candidateIds].slice(0, 21),
+      expected_amount: resolution.candidates[0]?.amount ?? Number(resolution.bank_credit.amount),
+      actual_amount: Number(resolution.bank_credit.amount),
+      difference: resolution.candidates[0]
+        ? Math.round((Number(resolution.candidates[0].amount) - Number(resolution.bank_credit.amount)) * 100) / 100
+        : 0,
+      status: "open",
+    });
+  }
+
+  const canonicalType = (event: NormalizedEvent): string => String(event.metadata?.canonical_event_type || event.event_type);
+  const sales = events.filter((e) => canonicalType(e) === "SALE");
+  const payments = events.filter((e) => canonicalType(e) === "PAYMENT");
+  const fees = events.filter((e) => canonicalType(e) === "FEE");
+  const settlements = events.filter((e) => canonicalType(e) === "SETTLEMENT");
+  const bankTxns = events.filter((e) => {
+    const direction = String(e.metadata?.direction || "").toLowerCase();
+    return direction !== "debit" && direction !== "dr" &&
+      (e.event_type === "BANK_TRANSACTION" || e.event_type === "BANK_CREDIT" || e.metadata?.canonical_event_type === "BANK_CREDIT");
+  });
 
   // Fee lookup map
   const feeByPaymentKey = new Map<string, NormalizedEvent>();
@@ -82,6 +112,12 @@ export function detectMissionExceptions(events: NormalizedEvent[]): DetectedExce
   const matchedPaymentIds = new Set<string>();
   const matchedSettlementIds = new Set<string>();
   const matchedBankIds = new Set<string>();
+  const assignedBankByCandidate = new Map<string, NormalizedEvent>();
+  for (const resolution of options.bankCreditResolutions || []) {
+    if (resolution.chosen_candidate_id && ["deterministic", "llm_resolved"].includes(resolution.status)) {
+      assignedBankByCandidate.set(resolution.chosen_candidate_id, resolution.bank_credit);
+    }
+  }
 
   for (const sale of sales) {
     const saleId = sale.id || "";
@@ -177,9 +213,27 @@ export function detectMissionExceptions(events: NormalizedEvent[]): DetectedExce
     let bestBank: NormalizedEvent | null = null;
     let bestBankScore = 0;
 
-    for (const bank of bankTxns) {
+    const assignedBank = bestSettlement.id ? assignedBankByCandidate.get(bestSettlement.id) : undefined;
+    if (assignedBank) {
+      bestBank = assignedBank;
+      bestBankScore = computeLinkScore({
+        hasDirectIdLink: false,
+        expectedAmount: Number(bestSettlement.amount),
+        actualAmount: Number(assignedBank.amount),
+        date1: bestSettlement.event_date,
+        date2: assignedBank.event_date,
+        refString1: bestSettlement.external_ref,
+        refString2: assignedBank.external_ref || assignedBank.counterparty,
+      }).total;
+    }
+
+    for (const bank of assignedBank ? [] : bankTxns) {
       const bankId = bank.id || "";
       if (bankId && matchedBankIds.has(bankId)) continue;
+
+      if (bestSettlement.id && (options.bankCreditResolutions || []).some((resolution) =>
+        resolution.candidates.some((candidate) => candidate.candidate_id === bestSettlement!.id)
+      )) continue;
 
       const bankDesc = String(bank.counterparty || bank.metadata?.description || "");
       const settlementRef = bestSettlement.external_ref || "";
@@ -207,6 +261,11 @@ export function detectMissionExceptions(events: NormalizedEvent[]): DetectedExce
 
     // Condition 2: Missing Bank Credit
     if (!bestBank || bestBankScore < 50 || !bestBank.id) {
+      const isAmbiguousCandidate = Boolean(bestSettlement.id && (options.bankCreditResolutions || []).some((resolution) =>
+        ["ambiguous", "combined_batches", "insufficient_evidence"].includes(resolution.status) &&
+        resolution.candidates.some((candidate) => candidate.candidate_id === bestSettlement!.id)
+      ));
+      if (isAmbiguousCandidate) continue;
       const chainIds = [saleId, bestPayment.id, bestSettlement.id];
       if (paymentFee?.id) chainIds.push(paymentFee.id);
 

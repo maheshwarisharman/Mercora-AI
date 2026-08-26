@@ -138,6 +138,7 @@ interface MissionException {
     | "duplicate"
     | "missing_settlement"
     | "missing_bank_credit"
+    | "ambiguous_bank_credit"
     | "unexplained_difference";
   expected_amount: number;
   actual_amount: number;

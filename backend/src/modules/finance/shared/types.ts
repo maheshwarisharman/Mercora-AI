@@ -75,6 +75,7 @@ export type EventType =
   | 'FEE'
   | 'SETTLEMENT'
   | 'BANK_TRANSACTION'
+  | 'BANK_CREDIT'
   | 'INVOICE'
   | 'PURCHASE'
   | 'ADJUSTMENT'

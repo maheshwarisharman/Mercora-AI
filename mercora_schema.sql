@@ -148,6 +148,7 @@ create type finance.extraction_method as enum (
 
 create type finance.event_type as enum (
   'SALE', 'PAYMENT', 'REFUND', 'FEE', 'SETTLEMENT', 'BANK_TRANSACTION',
+  'BANK_CREDIT',
   'INVOICE', 'PURCHASE', 'ADJUSTMENT', 'CHARGEBACK', 'CREDIT_NOTE', 'DEBIT_NOTE',
   'COD_COLLECTION', 'COD_REMITTANCE', 'COD_DEDUCTION', 'RTO_EVENT'
 );
@@ -166,7 +167,7 @@ create type finance.match_status as enum (
 
 create type finance.exception_type as enum (
   'timing_difference', 'gateway_fee', 'refund', 'partial_refund',
-  'duplicate', 'missing_settlement', 'missing_bank_credit', 'unexplained_difference'
+  'duplicate', 'missing_settlement', 'missing_bank_credit', 'ambiguous_bank_credit', 'unexplained_difference'
 );
 
 create type finance.exception_status as enum (
@@ -301,6 +302,27 @@ create table finance.matches (
 
 create index matches_mission_id_idx on finance.matches(mission_id);
 create index matches_event_ids_idx on finance.matches using gin(event_ids);
+
+-- Ranked deterministic candidates are retained so LLM fallback and later
+-- threshold tuning consume structured evidence rather than raw narrations.
+create table finance.bank_credit_candidates (
+  id                    uuid primary key default gen_random_uuid(),
+  mission_id            uuid not null references finance.finance_missions(id) on delete cascade,
+  bank_credit_id        uuid not null references finance.normalized_events(id) on delete cascade,
+  candidate_event_id    uuid not null references finance.normalized_events(id) on delete cascade,
+  batch_ref             text not null,
+  source                text not null,
+  score                 numeric(5,2) not null,
+  amount                numeric(14,2) not null,
+  event_date            date not null,
+  signals               jsonb not null default '{}'::jsonb,
+  resolution_status     text not null default 'ambiguous',
+  created_at            timestamptz not null default now(),
+  unique (bank_credit_id, candidate_event_id)
+);
+
+create index bank_credit_candidates_mission_id_idx on finance.bank_credit_candidates(mission_id);
+create index bank_credit_candidates_bank_credit_id_idx on finance.bank_credit_candidates(bank_credit_id);
 
 -- ----------------------------------------------------------------------------
 
@@ -444,6 +466,7 @@ alter table finance.source_documents enable row level security;
 alter table finance.extracted_records enable row level security;
 alter table finance.normalized_events enable row level security;
 alter table finance.matches enable row level security;
+alter table finance.bank_credit_candidates enable row level security;
 alter table finance.exceptions enable row level security;
 alter table finance.evidence enable row level security;
 alter table finance.exception_judgments enable row level security;
@@ -490,6 +513,15 @@ create policy matches_owner_all on finance.matches
   ) with check (
     exists (select 1 from finance.finance_missions fm
             where fm.id = matches.mission_id and core.owns_merchant(fm.merchant_id))
+  );
+
+create policy bank_credit_candidates_owner_all on finance.bank_credit_candidates
+  for all using (
+    exists (select 1 from finance.finance_missions fm
+            where fm.id = bank_credit_candidates.mission_id and core.owns_merchant(fm.merchant_id))
+  ) with check (
+    exists (select 1 from finance.finance_missions fm
+            where fm.id = bank_credit_candidates.mission_id and core.owns_merchant(fm.merchant_id))
   );
 
 create policy exceptions_owner_all on finance.exceptions

@@ -7,6 +7,88 @@ const COD_SUBSET_SUM_TOLERANCE = 5;
 const COD_BATCH_MIN_AGE_DAYS = 5;
 const COD_BATCH_MAX_AGE_DAYS = 20;
 
+export type BankCreditCandidateSource = "razorpay" | "courier" | string;
+
+export interface BankCreditDateWindow {
+  minDays: number;
+  maxDays: number;
+  /** The expected lag used to rank candidates inside the allowed window. */
+  idealDays?: number;
+}
+
+export interface BankCreditDisambiguationConfig {
+  /** Rupees. Used for exact/near-exact amount scoring and candidate filtering. */
+  amountToleranceRupees?: number;
+  /** Minimum score required before a deterministic assignment is accepted. */
+  minimumConfidence?: number;
+  /** Minimum gap between the first and second ranked candidates. */
+  minimumMargin?: number;
+  sourceDateWindows?: Record<string, BankCreditDateWindow>;
+  /** Add or override narration patterns without changing scorer logic. */
+  sourceKeywords?: Record<string, string[]>;
+}
+
+export interface BankCreditCandidate {
+  id: string;
+  batch_reference: string;
+  source: BankCreditCandidateSource;
+  amount: number;
+  date: string;
+  event: NormalizedEvent;
+  keywords: string[];
+}
+
+export interface BankCreditScoreBreakdown {
+  amount: number;
+  date: number;
+  narration: number;
+  reference: number;
+  total: number;
+  amount_difference: number;
+  date_difference_days: number | null;
+  matched_keywords: string[];
+}
+
+export interface RankedBankCreditCandidate {
+  candidate_id: string;
+  batch_reference: string;
+  source: BankCreditCandidateSource;
+  amount: number;
+  date: string;
+  score: number;
+  signals: BankCreditScoreBreakdown;
+  event: NormalizedEvent;
+}
+
+export type BankCreditResolutionStatus = "deterministic" | "ambiguous" | "no_candidates" | "llm_resolved" | "combined_batches" | "insufficient_evidence";
+
+export interface BankCreditResolution {
+  bank_credit: NormalizedEvent;
+  status: BankCreditResolutionStatus;
+  chosen_candidate_id: string | null;
+  confidence: number;
+  margin: number | null;
+  candidates: RankedBankCreditCandidate[];
+  resolution_method: "deterministic" | "llm" | "none";
+  combined_candidate_ids?: string[];
+  reasoning?: string;
+}
+
+/**
+ * Built-in patterns are deliberately data, not branching logic. A new
+ * courier can add patterns through `sourceKeywords` without editing the
+ * scorer. Candidate courier names are also added automatically at runtime.
+ */
+export const BANK_CREDIT_SOURCE_KEYWORDS: Record<string, string[]> = {
+  razorpay: ["razorpay", "rzp", "razor pay"],
+  courier: ["delhivery", "delivery", "dlvry", "cod", "remittance", "shiprocket", "ecom express", "xpressbees", "bluedart", "shadowfax"],
+};
+
+const DEFAULT_BANK_CREDIT_DATE_WINDOWS: Record<string, BankCreditDateWindow> = {
+  razorpay: { minDays: 2, maxDays: 3, idealDays: 2 },
+  courier: { minDays: 5, maxDays: 20, idealDays: 7 },
+};
+
 export interface LinkSignalBreakdown {
   id_signal: number;
   amount_signal: number;
@@ -46,6 +128,12 @@ export interface MatchResult {
   unmatched_payments: NormalizedEvent[];
   unmatched_settlements: NormalizedEvent[];
   unmatched_bank: NormalizedEvent[];
+  bank_credit_resolutions: BankCreditResolution[];
+}
+
+export interface MatchMissionOptions {
+  bankCreditAssignments?: Record<string, string>;
+  bankCreditDisambiguation?: BankCreditDisambiguationConfig;
 }
 
 /**
@@ -160,6 +248,290 @@ function getBatchRef(event: NormalizedEvent): string {
 
 function getEventDescription(event: NormalizedEvent): string {
   return String(event.counterparty || event.metadata?.description || "").trim();
+}
+
+function isBankCreditEvent(event: NormalizedEvent): boolean {
+  const direction = String(event.metadata?.direction || "").toLowerCase();
+  if (direction === "debit" || direction === "dr") return false;
+  return event.event_type === "BANK_TRANSACTION" || event.event_type === "BANK_CREDIT" ||
+    getCanonicalEventType(event) === "BANK_CREDIT";
+}
+
+function getBankNarration(event: NormalizedEvent): string {
+  return [
+    event.external_ref,
+    event.counterparty,
+    event.metadata?.description,
+    event.metadata?.narration,
+    event.metadata?.remarks,
+  ]
+    .filter((value) => value !== undefined && value !== null)
+    .map((value) => String(value))
+    .join(" ")
+    .toLowerCase();
+}
+
+function getCandidateSource(event: NormalizedEvent): BankCreditCandidateSource | null {
+  const canonicalSource = String(event.metadata?.canonical_source_system || event.source_system || "").toLowerCase();
+  const canonicalType = getCanonicalEventType(event);
+  if (canonicalSource === "razorpay" && (canonicalType === "SETTLEMENT" || event.event_type === "SETTLEMENT")) {
+    return "razorpay";
+  }
+  if (
+    canonicalSource === "courier" ||
+    canonicalSource === "cod" ||
+    canonicalType === "COD_REMITTANCE" ||
+    (canonicalType === "SETTLEMENT" && (event.source_system === "vendor" || event.metadata?.courier_partner))
+  ) {
+    return "courier";
+  }
+  return null;
+}
+
+function getCandidateKeywords(
+  event: NormalizedEvent,
+  source: BankCreditCandidateSource,
+  config: BankCreditDisambiguationConfig
+): string[] {
+  const partnerKeys = source === "courier"
+    ? [event.counterparty, event.metadata?.courier_partner, event.metadata?.courier_code]
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter(Boolean)
+    : [];
+  const configured = [
+    ...(config.sourceKeywords?.[source] || BANK_CREDIT_SOURCE_KEYWORDS[source] || []),
+    ...partnerKeys.flatMap((key) => config.sourceKeywords?.[key] || []),
+  ];
+  const dynamic = source === "courier" ? partnerKeys : [];
+
+  return Array.from(new Set([...configured, ...dynamic]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter((value) => value.length >= 2)));
+}
+
+function getCandidateBatchReference(event: NormalizedEvent): string {
+  return getBatchRef(event) || String(event.metadata?.settlement_id || event.external_ref || event.id || "").trim();
+}
+
+export function buildBankCreditCandidates(
+  events: NormalizedEvent[],
+  config: BankCreditDisambiguationConfig = {}
+): BankCreditCandidate[] {
+  return events
+    .map((event) => {
+      const source = getCandidateSource(event);
+      const id = String(event.id || "").trim();
+      if (!source || !id) return null;
+      return {
+        id,
+        batch_reference: getCandidateBatchReference(event),
+        source,
+        amount: Number(event.amount || 0),
+        date: event.event_date,
+        event,
+        keywords: getCandidateKeywords(event, source, config),
+      } satisfies BankCreditCandidate;
+    })
+    .filter((candidate): candidate is BankCreditCandidate => Boolean(candidate));
+}
+
+function getDateWindow(source: BankCreditCandidateSource, candidate: BankCreditCandidate, config: BankCreditDisambiguationConfig): BankCreditDateWindow {
+  const partnerKeys = source === "courier"
+    ? [candidate.event.metadata?.courier_partner, candidate.event.counterparty, candidate.event.metadata?.courier_code]
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter(Boolean)
+    : [];
+  const configuredBySource = partnerKeys.map((key) => config.sourceDateWindows?.[key]).find(Boolean) || config.sourceDateWindows?.[source];
+  const metadataWindow = candidate.event.metadata?.bank_credit_window_days;
+  if (Array.isArray(metadataWindow) && metadataWindow.length >= 2) {
+    return {
+      minDays: Number(metadataWindow[0]),
+      maxDays: Number(metadataWindow[1]),
+      idealDays: Number(metadataWindow[2] ?? metadataWindow[0]),
+    };
+  }
+  if (metadataWindow && typeof metadataWindow === "object") {
+    const window = metadataWindow as Record<string, unknown>;
+    return {
+      minDays: Number(window.minDays ?? window.min_days ?? 0),
+      maxDays: Number(window.maxDays ?? window.max_days ?? 365),
+      idealDays: Number(window.idealDays ?? window.ideal_days ?? window.minDays ?? 0),
+    };
+  }
+  return configuredBySource || DEFAULT_BANK_CREDIT_DATE_WINDOWS[source] || { minDays: 0, maxDays: 30, idealDays: 0 };
+}
+
+function getSignedDateDifferenceDays(sourceDate: string, bankDate: string): number | null {
+  const sourceTime = new Date(sourceDate).getTime();
+  const bankTime = new Date(bankDate).getTime();
+  if (!Number.isFinite(sourceTime) || !Number.isFinite(bankTime)) return null;
+  return Math.floor((bankTime - sourceTime) / (1000 * 60 * 60 * 24));
+}
+
+function scoreAmountProximity(bankAmount: number, candidateAmount: number, tolerance: number): number {
+  const difference = Math.abs(bankAmount - candidateAmount);
+  const larger = Math.max(Math.abs(bankAmount), Math.abs(candidateAmount), 1);
+  if (difference <= tolerance) return 45;
+  if (difference <= larger * 0.005) return 35;
+  if (difference <= larger * 0.02) return 22;
+  if (difference <= larger * 0.05) return 8;
+  return 0;
+}
+
+function scoreDateProximity(
+  bankDate: string,
+  candidate: BankCreditCandidate,
+  config: BankCreditDisambiguationConfig
+): { score: number; difference: number | null } {
+  const difference = getSignedDateDifferenceDays(candidate.date, bankDate);
+  if (difference === null || difference < 0) return { score: 0, difference };
+  const window = getDateWindow(candidate.source, candidate, config);
+  if (difference >= window.minDays && difference <= window.maxDays) {
+    const ideal = window.idealDays ?? window.minDays;
+    const spread = Math.max(window.maxDays - window.minDays, 1);
+    return { score: Math.max(18, 30 - Math.round((Math.abs(difference - ideal) / spread) * 12)), difference };
+  }
+  // A nearby date is useful evidence but is deliberately weaker than an
+  // in-window date; this keeps the scorer useful for timing anomalies.
+  if (difference <= window.maxDays + 7) {
+    return { score: Math.max(4, 16 - (difference > window.maxDays ? difference - window.maxDays : window.minDays - difference) * 2), difference };
+  }
+  return { score: 0, difference };
+}
+
+export function scoreBankCreditCandidate(params: {
+  bankCredit: NormalizedEvent;
+  candidate: BankCreditCandidate | NormalizedEvent;
+  config?: BankCreditDisambiguationConfig;
+}): RankedBankCreditCandidate {
+  const config = params.config || {};
+  const candidate = "keywords" in params.candidate
+    ? params.candidate
+    : (() => {
+        const source = getCandidateSource(params.candidate) || "unknown";
+        return {
+          id: String(params.candidate.id || ""),
+          batch_reference: getCandidateBatchReference(params.candidate),
+          source,
+          amount: Number(params.candidate.amount || 0),
+          date: params.candidate.event_date,
+          event: params.candidate,
+          keywords: getCandidateKeywords(params.candidate, source, config),
+        } satisfies BankCreditCandidate;
+      })();
+
+  const tolerance = config.amountToleranceRupees ?? 1;
+  const bankAmount = Number(params.bankCredit.amount || 0);
+  const narration = getBankNarration(params.bankCredit);
+  const matchedKeywords = candidate.keywords.filter((keyword) => narration.includes(keyword));
+  const reference = candidate.batch_reference && narration.includes(candidate.batch_reference.toLowerCase()) ? 25 : 0;
+  const narrationScore = reference > 0 ? 25 : matchedKeywords.length > 0 ? 25 : 0;
+  const dateScore = scoreDateProximity(params.bankCredit.event_date, candidate, config);
+  const amountScore = scoreAmountProximity(bankAmount, candidate.amount, tolerance);
+  const signals: BankCreditScoreBreakdown = {
+    amount: amountScore,
+    date: dateScore.score,
+    narration: narrationScore,
+    reference,
+    total: Math.min(100, amountScore + dateScore.score + narrationScore),
+    amount_difference: Math.round(Math.abs(bankAmount - candidate.amount) * 100) / 100,
+    date_difference_days: dateScore.difference,
+    matched_keywords: matchedKeywords,
+  };
+
+  return {
+    candidate_id: candidate.id,
+    batch_reference: candidate.batch_reference,
+    source: candidate.source,
+    amount: candidate.amount,
+    date: candidate.date,
+    score: signals.total,
+    signals,
+    event: candidate.event,
+  };
+}
+
+export function rankBankCreditCandidates(
+  bankCredit: NormalizedEvent,
+  candidates: BankCreditCandidate[] | NormalizedEvent[],
+  config: BankCreditDisambiguationConfig = {}
+): RankedBankCreditCandidate[] {
+  return candidates
+    .map((candidate) => scoreBankCreditCandidate({ bankCredit, candidate, config }))
+    .sort((left, right) => right.score - left.score || left.candidate_id.localeCompare(right.candidate_id));
+}
+
+/** Public plural alias for callers that treat this as the candidate scorer. */
+export function scoreBankCreditCandidates(
+  bankCredit: NormalizedEvent,
+  candidates: BankCreditCandidate[] | NormalizedEvent[],
+  config: BankCreditDisambiguationConfig = {}
+): RankedBankCreditCandidate[] {
+  return rankBankCreditCandidates(bankCredit, candidates, config);
+}
+
+export function resolveBankCreditDeterministically(params: {
+  bankCredit: NormalizedEvent;
+  candidates: BankCreditCandidate[] | NormalizedEvent[];
+  config?: BankCreditDisambiguationConfig;
+}): BankCreditResolution {
+  const config = params.config || {};
+  const ranked = rankBankCreditCandidates(params.bankCredit, params.candidates, config);
+  const top = ranked[0];
+  const second = ranked[1];
+  const minimumConfidence = config.minimumConfidence ?? 70;
+  const minimumMargin = config.minimumMargin ?? 15;
+  const margin = top ? top.score - (second?.score ?? 0) : null;
+  const deterministic = Boolean(top && top.score >= minimumConfidence && (second === undefined || (margin ?? 0) >= minimumMargin));
+
+  const status: BankCreditResolutionStatus = !top
+    ? "no_candidates"
+    : deterministic ? "deterministic" : "ambiguous";
+  const resolution: BankCreditResolution = {
+    bank_credit: params.bankCredit,
+    status,
+    chosen_candidate_id: deterministic ? top.candidate_id : null,
+    confidence: top?.score || 0,
+    margin,
+    candidates: ranked,
+    resolution_method: deterministic ? "deterministic" : "none",
+  };
+
+  return resolution;
+}
+
+export function resolveBankCreditCandidates(params: {
+  bankCredits: NormalizedEvent[];
+  candidates: NormalizedEvent[];
+  config?: BankCreditDisambiguationConfig;
+}): BankCreditResolution[] {
+  const candidateRecords = buildBankCreditCandidates(params.candidates, params.config);
+  const available = new Set(candidateRecords.map((candidate) => candidate.id));
+  const resolutions = params.bankCredits
+    .filter(isBankCreditEvent)
+    .map((bankCredit) => resolveBankCreditDeterministically({
+      bankCredit,
+      candidates: candidateRecords.filter((candidate) => available.has(candidate.id)),
+      config: params.config,
+    }))
+    .sort((left, right) => right.confidence - left.confidence);
+
+  // Enforce one bank credit per source batch. The strongest deterministic
+  // decision wins; a collision is left for the LLM/human review path.
+  const claimed = new Set<string>();
+  for (const resolution of resolutions) {
+    if (resolution.status !== "deterministic" || !resolution.chosen_candidate_id) continue;
+    if (claimed.has(resolution.chosen_candidate_id)) {
+      resolution.status = "ambiguous";
+      resolution.chosen_candidate_id = null;
+      resolution.resolution_method = "none";
+      resolution.reasoning = "Candidate was already claimed by a stronger bank-credit assignment.";
+      continue;
+    }
+    claimed.add(resolution.chosen_candidate_id);
+  }
+
+  return resolutions.sort((left, right) => String(left.bank_credit.id).localeCompare(String(right.bank_credit.id)));
 }
 
 function toPaise(amount: number): number {
@@ -400,14 +772,54 @@ export function findSubsetSumMatch(
  * Pure matcher function: operates on in-memory array of normalized events for a mission.
  * Chains standard online flows first, then resolves COD batch remittances as SALE[] -> COD_REMITTANCE -> BANK_TRANSACTION.
  */
-export function matchMissionEvents(events: NormalizedEvent[]): MatchResult {
+export function matchMissionEvents(events: NormalizedEvent[], options: MatchMissionOptions = {}): MatchResult {
   const sales = events.filter((event) => getCanonicalEventType(event) === "SALE");
   const payments = events.filter((event) => event.event_type === "PAYMENT" && getCanonicalEventType(event) === "PAYMENT");
   const fees = events.filter((event) => event.event_type === "FEE" && getCanonicalEventType(event) === "FEE");
   const settlements = events.filter((event) => event.event_type === "SETTLEMENT" && getCanonicalEventType(event) === "SETTLEMENT");
   const codRemittances = events.filter((event) => getCanonicalEventType(event) === "COD_REMITTANCE");
   const codDeductions = events.filter((event) => getCanonicalEventType(event) === "COD_DEDUCTION");
-  const bankTxns = events.filter((e) => e.event_type === "BANK_TRANSACTION");
+  const bankTxns = events.filter(isBankCreditEvent);
+
+  const bankCreditResolutions = resolveBankCreditCandidates({
+    bankCredits: bankTxns,
+    candidates: [...settlements, ...codRemittances],
+    config: options.bankCreditDisambiguation,
+  });
+  const resolutionByBankId = new Map(
+    bankCreditResolutions.map((resolution) => [String(resolution.bank_credit.id || ""), resolution])
+  );
+  const bankByCandidateId = new Map<string, NormalizedEvent>();
+  for (const resolution of bankCreditResolutions) {
+    if (resolution.chosen_candidate_id && (resolution.status === "deterministic" || resolution.status === "llm_resolved")) {
+      bankByCandidateId.set(resolution.chosen_candidate_id, resolution.bank_credit);
+    }
+  }
+  // LLM assignments are supplied as bank-credit ID -> candidate event ID. The
+  // caller validates these IDs against the exact ranked list before invoking
+  // the matcher; this map only applies already-validated assignments.
+  for (const [bankId, candidateId] of Object.entries(options.bankCreditAssignments || {})) {
+    const bank = bankTxns.find((event) => event.id === bankId);
+    const candidate = [...settlements, ...codRemittances].find((event) => event.id === candidateId);
+    if (!bank || !candidate) continue;
+    const existingBank = bankByCandidateId.get(candidateId);
+    if (existingBank && existingBank.id !== bankId) continue;
+    bankByCandidateId.set(candidateId, bank);
+    const resolution = resolutionByBankId.get(bankId);
+    if (resolution) {
+      resolution.status = "llm_resolved";
+      resolution.chosen_candidate_id = candidateId;
+      resolution.resolution_method = "llm";
+    }
+  }
+  const resolutionByCandidateId = new Map<string, BankCreditResolution>();
+  for (const resolution of bankCreditResolutions) {
+    if (resolution.candidates.length > 0) {
+      for (const candidate of resolution.candidates) {
+        resolutionByCandidateId.set(candidate.candidate_id, resolution);
+      }
+    }
+  }
 
   const matchedSaleIds = new Set<string>();
   const matchedPaymentIds = new Set<string>();
@@ -506,13 +918,33 @@ export function matchMissionEvents(events: NormalizedEvent[]): MatchResult {
 
     matchedSettlementIds.add(bestSettlement.id);
 
-    // 3. Find Best BANK_TRANSACTION Link for this Settlement
+    // 3. Find the assigned BANK_TRANSACTION link for this Settlement. A
+    // candidate present in the disambiguation plan must not fall back to the
+    // old greedy reference matcher when its ranked list is ambiguous.
     let bestBank: NormalizedEvent | null = null;
     let bestBankScore: LinkSignalBreakdown = { id_signal: 0, amount_signal: 0, date_signal: 0, reference_signal: 0, total: 0 };
 
-    for (const bank of bankTxns) {
+    const assignedBank = bestSettlement.id ? bankByCandidateId.get(bestSettlement.id) : undefined;
+    if (assignedBank) {
+      const bankDesc = String(assignedBank.counterparty || assignedBank.metadata?.description || "");
+      const settlementRef = bestSettlement.external_ref || "";
+      bestBank = assignedBank;
+      bestBankScore = computeLinkScore({
+        hasDirectIdLink: Boolean(settlementRef && bankDesc.toLowerCase().includes(settlementRef.toLowerCase())),
+        expectedAmount: Number(bestSettlement.amount),
+        actualAmount: Number(assignedBank.amount),
+        date1: bestSettlement.event_date,
+        date2: assignedBank.event_date,
+        refString1: settlementRef,
+        refString2: bankDesc,
+      });
+    }
+
+    for (const bank of assignedBank ? [] : bankTxns) {
       const bankId = bank.id || "";
       if (bankId && matchedBankIds.has(bankId)) continue;
+
+      if (bestSettlement.id && resolutionByCandidateId.has(bestSettlement.id)) continue;
 
       const bankDesc = String(bank.counterparty || bank.metadata?.description || "");
       const settlementRef = bestSettlement.external_ref || "";
@@ -601,11 +1033,23 @@ export function matchMissionEvents(events: NormalizedEvent[]): MatchResult {
     const batchRef = getBatchRef(remittance);
     if (!batchRef) continue;
 
-    const bankMatch = findBestDirectBankMatch({
-      remittance,
-      bankTxns,
-      matchedBankIds,
-    });
+    const assignedBank = remittance.id ? bankByCandidateId.get(remittance.id) : undefined;
+    const bankMatch = assignedBank
+      ? {
+          bank: assignedBank,
+          score: computeLinkScore({
+            hasDirectIdLink: Boolean(getBatchRef(remittance) && getBankNarration(assignedBank).includes(getBatchRef(remittance).toLowerCase())),
+            expectedAmount: Number(remittance.amount),
+            actualAmount: Number(assignedBank.amount),
+            date1: remittance.event_date,
+            date2: assignedBank.event_date,
+            refString1: batchRef,
+            refString2: assignedBank.external_ref || getEventDescription(assignedBank),
+          }),
+        }
+      : remittance.id && resolutionByCandidateId.has(remittance.id)
+      ? null
+      : findBestDirectBankMatch({ remittance, bankTxns, matchedBankIds });
 
     if (!bankMatch?.bank.id) {
       continue;
@@ -744,5 +1188,6 @@ export function matchMissionEvents(events: NormalizedEvent[]): MatchResult {
     unmatched_payments: unmatchedPayments,
     unmatched_settlements: unmatchedSettlements,
     unmatched_bank: unmatchedBank,
+    bank_credit_resolutions: bankCreditResolutions,
   };
 }

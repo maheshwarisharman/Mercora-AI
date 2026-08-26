@@ -143,6 +143,9 @@ Your task is to investigate a financial reconciliation exception and classify it
 AVAILABLE TOOLS:
 - get_exception_details: Fetch the exception row and linked transaction events. Call this first.
 - get_transaction_chain: Trace the full SALE→PAYMENT→SETTLEMENT→BANK chain for an order.
+- get_bank_credit: Fetch a bank credit's exact narration, amount, and date.
+- list_candidate_batches: List only currently-unmatched Razorpay/courier batches in a requested range.
+- get_narration_history: Retrieve confirmed narration precedents for a source.
 - search_evidence: Search support tickets and refund records with filters you choose.
 - request_human_review: Escalate when evidence is genuinely insufficient after investigation.
 

@@ -73,6 +73,7 @@ ${missionContext}
 AVAILABLE TOOLS:
 - list_open_exceptions: See what exceptions are still open and need attention.
 - get_exception_details: Get the full detail of a specific exception.
+- get_bank_credit / list_candidate_batches / get_narration_history: Inspect bank-credit assignments and confirmed narration precedents.
 - get_transaction_chain: Trace the payment chain for a specific order.
 - search_evidence: Search for supporting documentation (tickets, refund records).
 - get_mission_summary: Get aggregate statistics for this mission.

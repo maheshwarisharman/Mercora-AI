@@ -5,6 +5,15 @@ import { searchEvidenceDefinition, searchEvidence } from "./searchEvidence";
 import { getMissionSummaryDefinition, getMissionSummary } from "./missionSummary";
 import { listOpenExceptionsDefinition, listOpenExceptions } from "./listOpenExceptions";
 import { requestHumanReviewDefinition, requestHumanReview } from "./requestHumanReview";
+import {
+  getBankCreditDefinition,
+  listCandidateBatchesDefinition,
+  getNarrationHistoryDefinition,
+  createBankCreditToolImplementations,
+  getBankCredit,
+  listCandidateBatches,
+  getNarrationHistory,
+} from "./bankCredit";
 
 export type ToolContext = {
   merchantId?: string;
@@ -21,6 +30,9 @@ export const financeToolDefinitions: ToolDefinition[] = [
   getMissionSummaryDefinition,
   listOpenExceptionsDefinition,
   requestHumanReviewDefinition,
+  getBankCreditDefinition,
+  listCandidateBatchesDefinition,
+  getNarrationHistoryDefinition,
 ];
 
 /**
@@ -37,6 +49,7 @@ export function createFinanceToolImplementations(
     get_mission_summary: (args) => getMissionSummary(args),
     list_open_exceptions: (args) => listOpenExceptions(args),
     request_human_review: (args) => requestHumanReview(args, ctx),
+    ...createBankCreditToolImplementations(ctx),
   };
 }
 
@@ -48,6 +61,9 @@ export {
   getMissionSummary,
   listOpenExceptions,
   requestHumanReview,
+  getBankCredit,
+  listCandidateBatches,
+  getNarrationHistory,
 };
 
 export type { EvidenceResult } from "./searchEvidence";
