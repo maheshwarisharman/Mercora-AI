@@ -1,9 +1,8 @@
 import { getServiceSupabase } from "../../../shared/db/supabase";
 import { writeAuditLog } from "../shared/audit";
-import { mapShopifyOrder } from "./shopify";
-import { mapRazorpayTransaction } from "./razorpay";
-import { mapBankTransaction } from "./bank";
-import { parseDateToIso, type ExtractedRecord, type NormalizedEvent, type SourceDocument } from "../shared/types";
+import { normalizerRegistry } from "./registry";
+import type { ExtractedRecord, NormalizedEvent, SourceDocument } from "../shared/types";
+import type { NormalizationContext, SourceNormalizerAdapter } from "./types";
 
 export interface NormalizationSummary {
   events_created: number;
@@ -13,8 +12,9 @@ export interface NormalizationSummary {
 }
 
 /**
- * Orchestrates mission normalization across all unnormalized extracted records.
- * Follows strict source order: shopify -> razorpay -> bank.
+ * Orchestrates mission normalization across all unnormalized extracted records
+ * using the modular SourceNormalizerAdapter registry.
+ * Follows strict priority order defined by adapters (e.g., Shopify -> Razorpay -> COD -> Bank).
  * Fully idempotent: re-running skips already-normalized records without duplication.
  */
 export async function runMissionNormalization(params: {
@@ -83,198 +83,120 @@ export async function runMissionNormalization(params: {
     };
   }
 
-  // 4. Partition and sort unnormalized records into fixed sequence:
-  // shopify_orders -> razorpay_settlement -> bank_statement
-  const shopifyRecords: ExtractedRecord[] = [];
-  const razorpayRecords: ExtractedRecord[] = [];
-  const bankRecords: ExtractedRecord[] = [];
-
+  // 4. Partition unnormalized records by detected_source
+  const recordsBySource = new Map<string, ExtractedRecord[]>();
   for (const record of unnormalizedRecords) {
     const doc = docMap.get(record.source_document_id);
-    const source = doc?.detected_source;
+    let source = doc?.detected_source || "unknown";
 
-    if (source === "shopify_orders") {
-      shopifyRecords.push(record);
-    } else if (source === "razorpay_settlement") {
-      razorpayRecords.push(record);
-    } else if (source === "bank_statement") {
-      bankRecords.push(record);
+    // Heuristic fallback for COD courier files if detected_source is unknown
+    if (source === "unknown" && doc?.original_filename) {
+      const lowerName = doc.original_filename.toLowerCase();
+      if (
+        lowerName.includes("cod") ||
+        lowerName.includes("remittance") ||
+        lowerName.includes("delhivery") ||
+        lowerName.includes("shiprocket") ||
+        lowerName.includes("ecom")
+      ) {
+        source = "generic_cod";
+      }
     }
+
+    const group = recordsBySource.get(source) || [];
+    group.push(record);
+    recordsBySource.set(source, group);
   }
+
+  // 5. Resolve adapters and sort execution batches by priority
+  const executionBatches: Array<{ adapter: SourceNormalizerAdapter; records: ExtractedRecord[] }> = [];
+
+  for (const [source, records] of recordsBySource.entries()) {
+    const adapter = normalizerRegistry.get(source);
+    if (!adapter) {
+      console.warn(`[Normalization] No adapter registered for detected source '${source}'. Skipping ${records.length} records.`);
+      continue;
+    }
+    executionBatches.push({ adapter, records });
+  }
+
+  // Sort batches by adapter priority ascending (e.g. 1 -> 2 -> 3 -> 4)
+  executionBatches.sort((a, b) => a.adapter.priority - b.adapter.priority);
+
+  // 6. Execute normalization across batches
+  const context: NormalizationContext = {
+    missionId,
+    merchantId,
+    supabase,
+  };
 
   const allEventsToInsert: NormalizedEvent[] = [];
   const byTypeCount: Record<string, number> = {};
 
-  const recordEventCount = (type: string) => {
-    byTypeCount[type] = (byTypeCount[type] || 0) + 1;
+  for (const { adapter, records } of executionBatches) {
+    // Optional adapter-level validation
+    if (adapter.validate) {
+      const validation = adapter.validate(records);
+      if (!validation.valid && validation.recordIssues) {
+        console.warn(
+          `[Normalization Warning] Adapter '${adapter.detectedSource}' detected validation issues on ${validation.recordIssues.length} records.`
+        );
+      }
+    }
+
+    const events = await adapter.normalize(records, context);
+    for (const evt of events) {
+      allEventsToInsert.push(evt);
+      byTypeCount[evt.event_type] = (byTypeCount[evt.event_type] || 0) + 1;
+    }
+  }
+
+  // Helper to format event for DB insertion with fallback compatibility
+  const sanitizeEventForDb = (evt: NormalizedEvent): Record<string, any> => {
+    let dbEventType = evt.event_type;
+    if (evt.event_type === "COD_REMITTANCE") dbEventType = "SETTLEMENT" as any;
+    else if (evt.event_type === "COD_COLLECTION") dbEventType = "PAYMENT" as any;
+    else if (evt.event_type === "COD_DEDUCTION") dbEventType = "FEE" as any;
+    else if (evt.event_type === "RTO_EVENT") dbEventType = "ADJUSTMENT" as any;
+
+    const isCourier = evt.source_system === "courier" || evt.source_system === "cod";
+    const dbSourceSystem = isCourier ? "vendor" : evt.source_system;
+
+    return {
+      mission_id: evt.mission_id,
+      merchant_id: evt.merchant_id,
+      extracted_record_id: evt.extracted_record_id,
+      event_type: dbEventType,
+      source_system: dbSourceSystem,
+      external_ref: evt.external_ref,
+      amount: evt.amount,
+      currency: evt.currency || "INR",
+      event_date: evt.event_date,
+      counterparty: evt.counterparty,
+      order_id: evt.order_id,
+      payment_id: evt.payment_id,
+      customer_id: evt.customer_id,
+      metadata: {
+        ...evt.metadata,
+        canonical_event_type: evt.event_type,
+        canonical_source_system: evt.source_system,
+        batch_ref: evt.batch_ref,
+        order_ids: evt.order_ids,
+        deduction_type: evt.deduction_type,
+      },
+    };
   };
 
-  // --------------------------------------------------------------------------
-  // STAGE A: Normalize Shopify Orders (Populates core.customers & core.orders)
-  // --------------------------------------------------------------------------
-  for (const rec of shopifyRecords) {
-    const raw = rec.raw_json;
-    let customerId: string | null = null;
-    let orderId: string | null = null;
-
-    const email = raw.customer_email ? String(raw.customer_email).trim() : null;
-    const customerName = raw.customer_name ? String(raw.customer_name).trim() : null;
-    const orderRef = String(raw.order_id || "").trim();
-    const orderNumber = raw.order_number ? String(raw.order_number).trim() : null;
-    const totalAmount = parseFloat(raw.total_amount || "0");
-    const orderDate = parseDateToIso(raw.order_date || raw.date || raw.created_at);
-    const status = raw.status ? String(raw.status).trim() : null;
-    const currency = raw.currency ? String(raw.currency).trim().toUpperCase() : "INR";
-
-    // A1. Upsert Customer
-    if (email) {
-      const { data: customerData, error: custError } = await supabase
-        .schema("core")
-        .from("customers")
-        .upsert(
-          {
-            merchant_id: merchantId,
-            external_ref: email,
-            name: customerName,
-            email: email,
-          },
-          { onConflict: "merchant_id,external_ref" }
-        )
-        .select("id")
-        .single();
-
-      if (!custError && customerData) {
-        customerId = customerData.id;
-      }
-    }
-
-    // A2. Upsert Order
-    if (orderRef) {
-      const { data: orderData, error: ordError } = await supabase
-        .schema("core")
-        .from("orders")
-        .upsert(
-          {
-            merchant_id: merchantId,
-            customer_id: customerId,
-            external_ref: orderRef,
-            order_number: orderNumber,
-            total_amount: isNaN(totalAmount) ? 0 : totalAmount,
-            currency: currency,
-            status: status,
-            order_date: orderDate,
-          },
-          { onConflict: "merchant_id,external_ref" }
-        )
-        .select("id")
-        .single();
-
-      if (!ordError && orderData) {
-        orderId = orderData.id;
-      }
-    }
-
-    // A3. Generate SALE and conditional REFUND events
-    const mapped = mapShopifyOrder(raw, merchantId, missionId, rec.id, {
-      order_id: orderId,
-      customer_id: customerId,
-    });
-
-    mapped.forEach((evt) => {
-      allEventsToInsert.push(evt);
-      recordEventCount(evt.event_type);
-    });
-  }
-
-  // --------------------------------------------------------------------------
-  // STAGE B: Normalize Razorpay Transactions (Links to core.orders & core.payments)
-  // --------------------------------------------------------------------------
-  for (const rec of razorpayRecords) {
-    const raw = rec.raw_json;
-    const paymentId = String(raw.payment_id || "").trim();
-    const orderRef = String(raw.order_ref || "").trim();
-    const grossAmount = parseFloat(raw.gross_amount || "0");
-    const paymentDate = parseDateToIso(raw.payment_date || raw.date || raw.created_at);
-    const status = raw.status ? String(raw.status).trim() : null;
-
-    let resolvedOrderId: string | null = null;
-    let paymentUuid: string | null = null;
-
-    // B1. Resolve core.orders linkage via order_ref (matching external_ref or order_number)
-    if (orderRef) {
-      const { data: matchedOrder } = await supabase
-        .schema("core")
-        .from("orders")
-        .select("id")
-        .eq("merchant_id", merchantId)
-        .or(`external_ref.eq."${orderRef}",order_number.eq."${orderRef}"`)
-        .maybeSingle();
-
-      if (matchedOrder) {
-        resolvedOrderId = matchedOrder.id;
-      }
-    }
-
-    // B2. Upsert core.payments
-    if (paymentId) {
-      const { data: paymentData, error: payError } = await supabase
-        .schema("core")
-        .from("payments")
-        .upsert(
-          {
-            merchant_id: merchantId,
-            order_id: resolvedOrderId,
-            external_ref: paymentId,
-            amount: isNaN(grossAmount) ? 0 : grossAmount,
-            currency: "INR",
-            status: status,
-            payment_date: paymentDate,
-          },
-          { onConflict: "merchant_id,external_ref" }
-        )
-        .select("id")
-        .single();
-
-      if (!payError && paymentData) {
-        paymentUuid = paymentData.id;
-      }
-    }
-
-    // B3. Generate PAYMENT, FEE, SETTLEMENT events
-    const mapped = mapRazorpayTransaction(raw, merchantId, missionId, rec.id, {
-      order_id: resolvedOrderId,
-      payment_id: paymentUuid,
-    });
-
-    mapped.forEach((evt) => {
-      allEventsToInsert.push(evt);
-      recordEventCount(evt.event_type);
-    });
-  }
-
-  // --------------------------------------------------------------------------
-  // STAGE C: Normalize Bank Transactions
-  // --------------------------------------------------------------------------
-  for (const rec of bankRecords) {
-    const raw = rec.raw_json;
-    const mapped = mapBankTransaction(raw, merchantId, missionId, rec.id);
-
-    mapped.forEach((evt) => {
-      allEventsToInsert.push(evt);
-      recordEventCount(evt.event_type);
-    });
-  }
-
-  // --------------------------------------------------------------------------
-  // 5. Batch Insert into finance.normalized_events
-  // --------------------------------------------------------------------------
+  // 7. Batch Insert into finance.normalized_events
   const insertBatchSize = 100;
   for (let i = 0; i < allEventsToInsert.length; i += insertBatchSize) {
     const chunk = allEventsToInsert.slice(i, i + insertBatchSize);
+    const dbRows = chunk.map(sanitizeEventForDb);
+
     const { error: insertError } = await supabase
       .schema("finance")
       .from("normalized_events")
-      .insert(chunk);
+      .insert(dbRows);
 
     if (insertError) {
       console.error("Error inserting normalized_events chunk:", insertError);
@@ -282,8 +204,7 @@ export async function runMissionNormalization(params: {
     }
   }
 
-  // 6. Update Mission Status
-  // If all documents have extracted records and are normalized, set to 'reconciling'
+  // 8. Update Mission Status
   const newMissionStatus = "reconciling";
   await supabase
     .schema("finance")
@@ -292,7 +213,7 @@ export async function runMissionNormalization(params: {
     .eq("id", missionId)
     .eq("merchant_id", merchantId);
 
-  // 7. Write Audit Log
+  // 9. Write Audit Log
   await writeAuditLog({
     merchant_id: merchantId,
     mission_id: missionId,

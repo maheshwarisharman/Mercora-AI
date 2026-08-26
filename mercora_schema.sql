@@ -134,6 +134,7 @@ create type finance.mission_status as enum (
 
 create type finance.detected_source as enum (
   'shopify_orders', 'razorpay_settlement', 'bank_statement',
+  'generic_cod', 'courier_settlement',
   'vendor_invoice', 'support_export', 'unknown'
 );
 
@@ -147,11 +148,12 @@ create type finance.extraction_method as enum (
 
 create type finance.event_type as enum (
   'SALE', 'PAYMENT', 'REFUND', 'FEE', 'SETTLEMENT', 'BANK_TRANSACTION',
-  'INVOICE', 'PURCHASE', 'ADJUSTMENT', 'CHARGEBACK', 'CREDIT_NOTE', 'DEBIT_NOTE'
+  'INVOICE', 'PURCHASE', 'ADJUSTMENT', 'CHARGEBACK', 'CREDIT_NOTE', 'DEBIT_NOTE',
+  'COD_COLLECTION', 'COD_REMITTANCE', 'COD_DEDUCTION', 'RTO_EVENT'
 );
 
 create type finance.source_system as enum (
-  'shopify', 'razorpay', 'bank', 'vendor', 'manual'
+  'shopify', 'razorpay', 'bank', 'courier', 'cod', 'vendor', 'manual'
 );
 
 create type finance.match_type as enum (
@@ -266,6 +268,11 @@ create table finance.normalized_events (
   order_id              uuid references core.orders(id) on delete set null,
   payment_id            uuid references core.payments(id) on delete set null,
   customer_id           uuid references core.customers(id) on delete set null,
+
+  -- COD batch and line-item fields
+  batch_ref             text,
+  order_ids             text[],
+  deduction_type        text,
 
   metadata              jsonb not null default '{}'::jsonb,
   created_at            timestamptz not null default now()

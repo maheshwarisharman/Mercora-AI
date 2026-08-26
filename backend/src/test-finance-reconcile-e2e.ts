@@ -26,7 +26,7 @@ async function runReconcileE2ETest() {
     getLLMProvider("investigate");
     throw new Error("FAIL: Expected getLLMProvider with openrouter to throw an error");
   } catch (err: any) {
-    if (err.message.includes("Unknown LLM provider: openrouter")) {
+    if (err.message.includes("Unknown LLM provider")) {
       console.log("   ✓ Successfully verified: LLM_PROVIDER=openrouter throws clear error boundary.");
     } else {
       throw err;

@@ -51,6 +51,8 @@ export type DetectedSource =
   | 'shopify_orders'
   | 'razorpay_settlement'
   | 'bank_statement'
+  | 'generic_cod'
+  | 'courier_settlement'
   | 'vendor_invoice'
   | 'support_export'
   | 'unknown';
@@ -78,12 +80,26 @@ export type EventType =
   | 'ADJUSTMENT'
   | 'CHARGEBACK'
   | 'CREDIT_NOTE'
-  | 'DEBIT_NOTE';
+  | 'DEBIT_NOTE'
+  | 'COD_COLLECTION'
+  | 'COD_REMITTANCE'
+  | 'COD_DEDUCTION'
+  | 'RTO_EVENT';
+
+export type DeductionType =
+  | 'HANDLING_FEE'
+  | 'RTO_CLAWBACK'
+  | 'WEIGHT_ADJ'
+  | 'SHORTPAY'
+  | 'FREIGHT_CHARGE'
+  | 'OTHER';
 
 export type SourceSystem =
   | 'shopify'
   | 'razorpay'
   | 'bank'
+  | 'courier'
+  | 'cod'
   | 'vendor'
   | 'manual';
 
@@ -186,6 +202,9 @@ export interface NormalizedEvent {
   order_id?: string | null;
   payment_id?: string | null;
   customer_id?: string | null;
+  batch_ref?: string | null;
+  order_ids?: string[] | null;
+  deduction_type?: DeductionType | string | null;
   metadata?: Record<string, any>;
   created_at?: string;
 }

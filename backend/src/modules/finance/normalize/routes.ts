@@ -106,10 +106,19 @@ normalizeRouter.get(
         throw new Error(`Failed to fetch normalized events: ${error.message}`);
       }
 
+      const mappedEvents: NormalizedEvent[] = (events || []).map((evt: any) => ({
+        ...evt,
+        event_type: evt.metadata?.canonical_event_type || evt.event_type,
+        source_system: evt.metadata?.canonical_source_system || evt.source_system,
+        batch_ref: evt.metadata?.batch_ref || evt.batch_ref || null,
+        order_ids: evt.metadata?.order_ids || evt.order_ids || null,
+        deduction_type: evt.metadata?.deduction_type || evt.deduction_type || null,
+      }));
+
       res.json({
         success: true,
-        count: events?.length || 0,
-        data: (events || []) as NormalizedEvent[],
+        count: mappedEvents.length,
+        data: mappedEvents,
       });
     } catch (err: any) {
       console.error("Get normalized events exception:", err);

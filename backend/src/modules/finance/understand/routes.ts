@@ -15,6 +15,8 @@ const OverrideSourceSchema = z.object({
     "shopify_orders",
     "razorpay_settlement",
     "bank_statement",
+    "generic_cod",
+    "courier_settlement",
     "vendor_invoice",
     "support_export",
     "unknown",
