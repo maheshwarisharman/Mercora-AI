@@ -18,7 +18,9 @@ export function classifyDocumentHeuristic(
   headers?: string[]
 ): ClassificationResult {
   const lowerName = filename.toLowerCase();
-  const normalizedHeaders = headers?.map((h) => h.toLowerCase().trim().replace(/[^a-z0-9_]/g, "")) || [];
+  // Compare header signatures independent of separators/casing. This allows
+  // both transaction_date and transaction date to match transactiondate.
+  const normalizedHeaders = headers?.map((h) => h.toLowerCase().trim().replace(/[^a-z0-9]/g, "")) || [];
 
   // 1. Filename heuristic candidate
   let filenameCandidate: DetectedSource | null = null;
@@ -55,7 +57,12 @@ export function classifyDocumentHeuristic(
       headerCandidate = "razorpay_settlement";
     } else if (
       hasHeader("transactiondate") &&
-      (hasHeader("creditamount") || hasHeader("debitamount"))
+      (
+        hasHeader("creditinr") ||
+        hasHeader("debitinr") ||
+        hasHeader("creditamount") ||
+        hasHeader("debitamount")
+      )
     ) {
       headerCandidate = "bank_statement";
     }

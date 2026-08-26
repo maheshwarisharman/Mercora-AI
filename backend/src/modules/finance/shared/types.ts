@@ -32,6 +32,21 @@ export function parseDateToIso(dateVal?: any, fallbackDate?: string): string {
     return clean.replace(/\//g, "-");
   }
 
+  // Preserve date-only bank export values such as "25 Jul 2026". Passing
+  // these through Date/toISOString can shift them to the previous day in
+  // timezones east of UTC.
+  const textualDateMatch = clean.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
+  if (textualDateMatch) {
+    const [, day, monthName, year] = textualDateMatch;
+    const monthIndex = [
+      "january", "february", "march", "april", "may", "june",
+      "july", "august", "september", "october", "november", "december",
+    ].findIndex((month) => month.startsWith(monthName.toLowerCase()));
+    if (monthIndex >= 0) {
+      return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${day.padStart(2, "0")}`;
+    }
+  }
+
   const d = new Date(clean);
   if (!isNaN(d.getTime())) {
     return d.toISOString().split("T")[0];
