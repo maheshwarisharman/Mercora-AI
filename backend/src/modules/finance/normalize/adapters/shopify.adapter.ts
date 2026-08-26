@@ -1,11 +1,13 @@
 import type { ExtractedRecord, NormalizedEvent } from "../../shared/types";
-import { parseDateToIso } from "../../shared/types";
 import type { NormalizationContext, SourceNormalizerAdapter, ValidationResult } from "../types";
-import { mapShopifyOrder } from "../shopify";
+import { mapShopifyOrder, normalizeShopifyOrderRow } from "../shopify";
 
 export class ShopifyAdapter implements SourceNormalizerAdapter {
   readonly detectedSource = "shopify_orders";
-  readonly requiredFields = ["order_id", "total_amount"];
+  // Shopify can provide either native labels (`Name`, `Total`, `Created at`)
+  // or canonical keys from an API/import pipeline, so field names are resolved
+  // semantically by normalizeShopifyOrderRow instead of being required here.
+  readonly requiredFields = [];
   readonly priority = 1;
 
   validate(records: ExtractedRecord[]): ValidationResult {
@@ -13,9 +15,8 @@ export class ShopifyAdapter implements SourceNormalizerAdapter {
     const recordIssues: Array<{ recordId: string; missingFields: string[] }> = [];
 
     for (const rec of records) {
-      const missingForRec = this.requiredFields.filter(
-        (f) => rec.raw_json[f] === undefined || rec.raw_json[f] === null || rec.raw_json[f] === ""
-      );
+      const normalized = normalizeShopifyOrderRow(rec.raw_json);
+      const missingForRec = normalized.orderId ? [] : ["order identifier"];
       if (missingForRec.length > 0) {
         recordIssues.push({ recordId: rec.id, missingFields: missingForRec });
       }
@@ -35,19 +36,35 @@ export class ShopifyAdapter implements SourceNormalizerAdapter {
     const { missionId, merchantId, supabase } = context;
     const events: NormalizedEvent[] = [];
 
-    for (const rec of records) {
+    // Shopify's CSV export is line-item based. Order-level values are usually
+    // present only on the first row, so group rows by the resolved order
+    // identity and normalize one order summary per group.
+    const groups = new Map<string, Array<{ record: ExtractedRecord; normalized: ReturnType<typeof normalizeShopifyOrderRow> }>>();
+    for (const record of records) {
+      const normalized = normalizeShopifyOrderRow(record.raw_json);
+      const groupKey = normalized.orderId ? `order:${normalized.orderId}` : `record:${record.id}`;
+      const group = groups.get(groupKey) || [];
+      group.push({ record, normalized });
+      groups.set(groupKey, group);
+    }
+
+    for (const group of groups.values()) {
+      const representative =
+        group.find(({ normalized }) => normalized.totalAmount !== null) || group[0];
+      const rec = representative.record;
       const raw = rec.raw_json;
+      const normalized = representative.normalized;
       let customerId: string | null = null;
       let orderId: string | null = null;
 
-      const email = raw.customer_email ? String(raw.customer_email).trim() : null;
-      const customerName = raw.customer_name ? String(raw.customer_name).trim() : null;
-      const orderRef = String(raw.order_id || "").trim();
-      const orderNumber = raw.order_number ? String(raw.order_number).trim() : null;
-      const totalAmount = parseFloat(raw.total_amount || "0");
-      const orderDate = parseDateToIso(raw.order_date || raw.date || raw.created_at);
-      const status = raw.status ? String(raw.status).trim() : null;
-      const currency = raw.currency ? String(raw.currency).trim().toUpperCase() : "INR";
+      const email = normalized.customerEmail;
+      const customerName = normalized.customerName;
+      const orderRef = normalized.orderId;
+      const orderNumber = normalized.orderNumber;
+      const totalAmount = normalized.totalAmount ?? 0;
+      const orderDate = normalized.orderDate;
+      const status = normalized.status;
+      const currency = normalized.currency;
 
       // 1. Upsert Customer
       if (email) {
@@ -82,7 +99,7 @@ export class ShopifyAdapter implements SourceNormalizerAdapter {
               customer_id: customerId,
               external_ref: orderRef,
               order_number: orderNumber,
-              total_amount: isNaN(totalAmount) ? 0 : totalAmount,
+              total_amount: totalAmount,
               currency: currency,
               status: status,
               order_date: orderDate,
@@ -101,6 +118,7 @@ export class ShopifyAdapter implements SourceNormalizerAdapter {
       const mapped = mapShopifyOrder(raw, merchantId, missionId, rec.id, {
         order_id: orderId,
         customer_id: customerId,
+        source_record_ids: group.map(({ record }) => record.id),
       });
 
       mapped.forEach((evt) => events.push(evt));

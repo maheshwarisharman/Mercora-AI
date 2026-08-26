@@ -56,7 +56,7 @@ export async function runMissionNormalization(params: {
   const { data: existingEvents, error: existingError } = await supabase
     .schema("finance")
     .from("normalized_events")
-    .select("extracted_record_id")
+    .select("extracted_record_id, metadata")
     .eq("mission_id", missionId)
     .eq("merchant_id", merchantId);
 
@@ -64,9 +64,27 @@ export async function runMissionNormalization(params: {
     throw new Error(`Failed to check existing normalized events: ${existingError.message}`);
   }
 
-  const existingExtractedIds = new Set(
-    (existingEvents || []).map((e: { extracted_record_id: string }) => e.extracted_record_id)
-  );
+  const existingExtractedIds = new Set<string>();
+  for (const event of existingEvents || []) {
+    const typedEvent = event as {
+      extracted_record_id: string;
+      metadata?: { source_record_ids?: unknown } | null;
+    };
+    existingExtractedIds.add(typedEvent.extracted_record_id);
+
+    // Some source formats (notably Shopify's line-item CSV) collapse several
+    // extracted rows into one financial event. Count those source rows as
+    // processed as well, preserving idempotency without creating zero-value
+    // duplicate events.
+    const sourceRecordIds = typedEvent.metadata?.source_record_ids;
+    if (Array.isArray(sourceRecordIds)) {
+      for (const sourceRecordId of sourceRecordIds) {
+        if (typeof sourceRecordId === "string" && sourceRecordId) {
+          existingExtractedIds.add(sourceRecordId);
+        }
+      }
+    }
+  }
 
   // Filter only unnormalized records
   const unnormalizedRecords = (extractedRecords as ExtractedRecord[]).filter(

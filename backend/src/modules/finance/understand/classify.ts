@@ -1,4 +1,5 @@
 import type { DetectedSource, DetectionMethod } from "../shared/types";
+import { looksLikeShopifyOrderHeaders } from "../normalize/shopify";
 
 export interface ClassificationResult {
   detected_source: DetectedSource;
@@ -45,13 +46,16 @@ export function classifyDocumentHeuristic(
   if (normalizedHeaders.length > 0) {
     const hasHeader = (h: string) => normalizedHeaders.some((item) => item.includes(h));
 
-    if (hasHeader("order_id") && hasHeader("customer_email")) {
+    if (
+      (hasHeader("orderid") && hasHeader("customeremail")) ||
+      looksLikeShopifyOrderHeaders(headers || [])
+    ) {
       headerCandidate = "shopify_orders";
-    } else if (hasHeader("payment_id") && hasHeader("settlement_id")) {
+    } else if (hasHeader("paymentid") && hasHeader("settlementid")) {
       headerCandidate = "razorpay_settlement";
     } else if (
-      hasHeader("transaction_date") &&
-      (hasHeader("credit_amount") || hasHeader("debit_amount"))
+      hasHeader("transactiondate") &&
+      (hasHeader("creditamount") || hasHeader("debitamount"))
     ) {
       headerCandidate = "bank_statement";
     }
