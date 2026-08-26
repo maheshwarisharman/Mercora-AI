@@ -1,6 +1,12 @@
 import levenshtein from "fast-levenshtein";
 import type { NormalizedEvent } from "../shared/types";
 
+const MATCH_SCORE_THRESHOLD = 50;
+const COD_EXACT_MATCH_TOLERANCE = 1;
+const COD_SUBSET_SUM_TOLERANCE = 5;
+const COD_BATCH_MIN_AGE_DAYS = 5;
+const COD_BATCH_MAX_AGE_DAYS = 20;
+
 export interface LinkSignalBreakdown {
   id_signal: number;
   amount_signal: number;
@@ -19,12 +25,17 @@ export interface ReconciledChain {
     sale_to_payment?: LinkSignalBreakdown;
     payment_to_settlement?: LinkSignalBreakdown;
     settlement_to_bank?: LinkSignalBreakdown;
+    sale_group_to_settlement?: LinkSignalBreakdown;
+    remittance_to_bank?: LinkSignalBreakdown;
   };
   events: {
     sale?: NormalizedEvent;
+    sales?: NormalizedEvent[];
     payment?: NormalizedEvent;
     fee?: NormalizedEvent;
+    fees?: NormalizedEvent[];
     settlement?: NormalizedEvent;
+    remittance?: NormalizedEvent;
     bank?: NormalizedEvent;
   };
 }
@@ -139,23 +150,271 @@ export function computeLinkScore(params: {
   };
 }
 
+function getCanonicalEventType(event: NormalizedEvent): string {
+  return String(event.metadata?.canonical_event_type || event.event_type || "").trim();
+}
+
+function getBatchRef(event: NormalizedEvent): string {
+  return String(event.batch_ref || event.metadata?.batch_ref || event.external_ref || "").trim();
+}
+
+function getEventDescription(event: NormalizedEvent): string {
+  return String(event.counterparty || event.metadata?.description || "").trim();
+}
+
+function toPaise(amount: number): number {
+  return Math.round(Number(amount || 0) * 100);
+}
+
+function sumEventAmounts(events: NormalizedEvent[]): number {
+  return events.reduce((total, event) => total + Number(event.amount || 0), 0);
+}
+
+function amountsWithinTolerance(expectedAmount: number, actualAmount: number, toleranceRupees: number): boolean {
+  return Math.abs(Number(expectedAmount || 0) - Number(actualAmount || 0)) <= toleranceRupees;
+}
+
+function normalizeLookupValue(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized ? normalized : null;
+}
+
+function normalizeStringArray(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((value) => normalizeLookupValue(value))
+    .filter((value): value is string => Boolean(value));
+}
+
+function getSaleLookupKeys(sale: NormalizedEvent): string[] {
+  const keys = [
+    normalizeLookupValue(sale.order_id),
+    normalizeLookupValue(sale.external_ref),
+    normalizeLookupValue(sale.metadata?.order_number),
+  ].filter((value): value is string => Boolean(value));
+
+  return Array.from(new Set(keys));
+}
+
+function buildSaleIndex(sales: NormalizedEvent[]): Map<string, NormalizedEvent[]> {
+  const saleIndex = new Map<string, NormalizedEvent[]>();
+
+  for (const sale of sales) {
+    for (const key of getSaleLookupKeys(sale)) {
+      const existing = saleIndex.get(key) || [];
+      existing.push(sale);
+      saleIndex.set(key, existing);
+    }
+  }
+
+  return saleIndex;
+}
+
+function getLatestEventDate(events: NormalizedEvent[]): string | null {
+  if (events.length === 0) return null;
+  return events.reduce((latest, event) => {
+    if (!latest) return event.event_date;
+    return new Date(event.event_date).getTime() > new Date(latest).getTime() ? event.event_date : latest;
+  }, "" as string);
+}
+
+function getOrderRefForSale(sale: NormalizedEvent): string {
+  return sale.external_ref || String(sale.metadata?.order_number || sale.id || "");
+}
+
+function getRepresentativeOrderRef(sales: NormalizedEvent[], fallback: string): string {
+  return sales.map(getOrderRefForSale).find(Boolean) || fallback;
+}
+
+function isSaleWithinWindowBeforeAnchor(
+  sale: NormalizedEvent,
+  anchorDate: string,
+  minDays: number,
+  maxDays: number
+): boolean {
+  const saleTime = new Date(sale.event_date).getTime();
+  const anchorTime = new Date(anchorDate).getTime();
+  if (!Number.isFinite(saleTime) || !Number.isFinite(anchorTime) || saleTime > anchorTime) {
+    return false;
+  }
+
+  const diffDays = Math.floor((anchorTime - saleTime) / (1000 * 60 * 60 * 24));
+  return diffDays >= minDays && diffDays <= maxDays;
+}
+
+function collectSalesForOrderRefs(params: {
+  orderRefs: string[];
+  saleIndex: Map<string, NormalizedEvent[]>;
+  matchedSaleIds: Set<string>;
+}): { sales: NormalizedEvent[]; resolvedOrderRefs: Set<string> } {
+  const { orderRefs, saleIndex, matchedSaleIds } = params;
+  const collected: NormalizedEvent[] = [];
+  const seenSaleIds = new Set<string>();
+  const resolvedOrderRefs = new Set<string>();
+
+  for (const orderRef of orderRefs) {
+    const normalizedRef = normalizeLookupValue(orderRef);
+    if (!normalizedRef) continue;
+
+    const salesForRef = saleIndex.get(normalizedRef) || [];
+    if (salesForRef.length > 0) {
+      resolvedOrderRefs.add(normalizedRef);
+    }
+
+    for (const sale of salesForRef) {
+      const saleId = sale.id || `${sale.external_ref || ""}:${sale.event_date}:${sale.amount}`;
+      if (matchedSaleIds.has(sale.id || "") || seenSaleIds.has(saleId)) continue;
+      seenSaleIds.add(saleId);
+      collected.push(sale);
+    }
+  }
+
+  return { sales: collected, resolvedOrderRefs };
+}
+
+function buildCodDeductionIndex(deductions: NormalizedEvent[]): Map<string, NormalizedEvent[]> {
+  const deductionIndex = new Map<string, NormalizedEvent[]>();
+
+  for (const deduction of deductions) {
+    const batchRef = getBatchRef(deduction);
+    if (!batchRef) continue;
+
+    const existing = deductionIndex.get(batchRef) || [];
+    existing.push(deduction);
+    deductionIndex.set(batchRef, existing);
+  }
+
+  return deductionIndex;
+}
+
+function findBestDirectBankMatch(params: {
+  remittance: NormalizedEvent;
+  bankTxns: NormalizedEvent[];
+  matchedBankIds: Set<string>;
+}): { bank: NormalizedEvent; score: LinkSignalBreakdown } | null {
+  const { remittance, bankTxns, matchedBankIds } = params;
+  const batchRef = getBatchRef(remittance);
+  const referenceKeys = Array.from(
+    new Set([normalizeLookupValue(batchRef), normalizeLookupValue(remittance.external_ref)].filter((value): value is string => Boolean(value)))
+  );
+
+  if (referenceKeys.length === 0) return null;
+
+  let bestBank: NormalizedEvent | null = null;
+  let bestScore: LinkSignalBreakdown = { id_signal: 0, amount_signal: 0, date_signal: 0, reference_signal: 0, total: 0 };
+
+  for (const bank of bankTxns) {
+    const bankId = bank.id || "";
+    if (bankId && matchedBankIds.has(bankId)) continue;
+
+    const bankRef = normalizeLookupValue(bank.external_ref);
+    const bankDesc = normalizeLookupValue(getEventDescription(bank)) || "";
+    const hasDirectIdLink = referenceKeys.some((referenceKey) => bankRef === referenceKey || bankDesc.includes(referenceKey));
+    if (!hasDirectIdLink) continue;
+
+    const score = computeLinkScore({
+      hasDirectIdLink,
+      expectedAmount: Number(remittance.amount),
+      actualAmount: Number(bank.amount),
+      date1: remittance.event_date,
+      date2: bank.event_date,
+      refString1: batchRef || remittance.external_ref,
+      refString2: bank.external_ref || getEventDescription(bank),
+    });
+
+    if (score.total > bestScore.total) {
+      bestScore = score;
+      bestBank = bank;
+    }
+  }
+
+  return bestBank ? { bank: bestBank, score: bestScore } : null;
+}
+
+export function findSubsetSumMatch(
+  targetAmount: number,
+  candidates: Array<Pick<NormalizedEvent, "amount">>,
+  toleranceRupees = 0
+): number[] | null {
+  const targetPaise = toPaise(targetAmount);
+  const tolerancePaise = toPaise(toleranceRupees);
+  const maxTargetPaise = targetPaise + tolerancePaise;
+  const normalizedCandidates = candidates
+    .map((candidate, index) => ({ index, paise: toPaise(Number(candidate.amount || 0)) }))
+    .filter((candidate) => candidate.paise > 0 && candidate.paise <= maxTargetPaise);
+
+  const reachable = new Set<number>([0]);
+  const parents = new Map<number, { prevSum: number; candidateIndex: number }>();
+
+  for (const candidate of normalizedCandidates) {
+    const currentSums = Array.from(reachable);
+    const nextSums: number[] = [];
+
+    for (const sum of currentSums) {
+      const nextSum = sum + candidate.paise;
+      if (nextSum > maxTargetPaise || reachable.has(nextSum) || parents.has(nextSum)) {
+        continue;
+      }
+
+      parents.set(nextSum, { prevSum: sum, candidateIndex: candidate.index });
+      nextSums.push(nextSum);
+    }
+
+    for (const nextSum of nextSums) {
+      reachable.add(nextSum);
+    }
+  }
+
+  let bestSum: number | null = null;
+  for (let offset = 0; offset <= tolerancePaise; offset += 1) {
+    const lower = targetPaise - offset;
+    const upper = targetPaise + offset;
+
+    if (lower >= 0 && reachable.has(lower)) {
+      bestSum = lower;
+      break;
+    }
+
+    if (offset > 0 && reachable.has(upper)) {
+      bestSum = upper;
+      break;
+    }
+  }
+
+  if (bestSum === null) return null;
+
+  const matchedCandidateIndexes: number[] = [];
+  let currentSum = bestSum;
+  while (currentSum > 0) {
+    const parent = parents.get(currentSum);
+    if (!parent) return null;
+    matchedCandidateIndexes.push(parent.candidateIndex);
+    currentSum = parent.prevSum;
+  }
+
+  return matchedCandidateIndexes.reverse();
+}
+
 /**
  * Pure matcher function: operates on in-memory array of normalized events for a mission.
- * Chains: SALE -> PAYMENT -> SETTLEMENT -> BANK_TRANSACTION.
+ * Chains standard online flows first, then resolves COD batch remittances as SALE[] -> COD_REMITTANCE -> BANK_TRANSACTION.
  */
 export function matchMissionEvents(events: NormalizedEvent[]): MatchResult {
-  const sales = events.filter((e) => e.event_type === "SALE");
-  const payments = events.filter((e) => e.event_type === "PAYMENT");
-  const fees = events.filter((e) => e.event_type === "FEE");
-  const settlements = events.filter((e) => e.event_type === "SETTLEMENT");
+  const sales = events.filter((event) => getCanonicalEventType(event) === "SALE");
+  const payments = events.filter((event) => event.event_type === "PAYMENT" && getCanonicalEventType(event) === "PAYMENT");
+  const fees = events.filter((event) => event.event_type === "FEE" && getCanonicalEventType(event) === "FEE");
+  const settlements = events.filter((event) => event.event_type === "SETTLEMENT" && getCanonicalEventType(event) === "SETTLEMENT");
+  const codRemittances = events.filter((event) => getCanonicalEventType(event) === "COD_REMITTANCE");
+  const codDeductions = events.filter((event) => getCanonicalEventType(event) === "COD_DEDUCTION");
   const bankTxns = events.filter((e) => e.event_type === "BANK_TRANSACTION");
 
+  const matchedSaleIds = new Set<string>();
   const matchedPaymentIds = new Set<string>();
   const matchedSettlementIds = new Set<string>();
   const matchedBankIds = new Set<string>();
 
   const matches: ReconciledChain[] = [];
-  const unmatchedSales: NormalizedEvent[] = [];
 
   // Group fees by payment id or external_ref for lookup
   const feeByPaymentKey = new Map<string, NormalizedEvent>();
@@ -200,11 +459,11 @@ export function matchMissionEvents(events: NormalizedEvent[]): MatchResult {
       }
     }
 
-    if (!bestPayment || bestPaymentScore.total < 50 || !bestPayment.id) {
-      unmatchedSales.push(sale);
+    if (!bestPayment || bestPaymentScore.total < MATCH_SCORE_THRESHOLD || !bestPayment.id) {
       continue;
     }
 
+    if (saleId) matchedSaleIds.add(saleId);
     matchedPaymentIds.add(bestPayment.id);
 
     // 2. Find Best SETTLEMENT Link for this Payment
@@ -241,7 +500,7 @@ export function matchMissionEvents(events: NormalizedEvent[]): MatchResult {
       }
     }
 
-    if (!bestSettlement || bestSettlementScore.total < 50 || !bestSettlement.id) {
+    if (!bestSettlement || bestSettlementScore.total < MATCH_SCORE_THRESHOLD || !bestSettlement.id) {
       continue;
     }
 
@@ -279,7 +538,7 @@ export function matchMissionEvents(events: NormalizedEvent[]): MatchResult {
       }
     }
 
-    if (!bestBank || bestBankScore.total < 50 || !bestBank.id) {
+    if (!bestBank || bestBankScore.total < MATCH_SCORE_THRESHOLD || !bestBank.id) {
       continue;
     }
 
@@ -332,8 +591,151 @@ export function matchMissionEvents(events: NormalizedEvent[]): MatchResult {
     });
   }
 
+  const saleIndex = buildSaleIndex(sales);
+  const codDeductionsByBatch = buildCodDeductionIndex(codDeductions);
+
+  for (const remittance of codRemittances) {
+    const remittanceId = remittance.id || "";
+    if (remittanceId && matchedSettlementIds.has(remittanceId)) continue;
+
+    const batchRef = getBatchRef(remittance);
+    if (!batchRef) continue;
+
+    const bankMatch = findBestDirectBankMatch({
+      remittance,
+      bankTxns,
+      matchedBankIds,
+    });
+
+    if (!bankMatch?.bank.id) {
+      continue;
+    }
+
+    const deductions = codDeductionsByBatch.get(batchRef) || [];
+    const deductionTotal = sumEventAmounts(deductions);
+    const directOrderRefs = normalizeStringArray(remittance.order_ids || remittance.metadata?.order_ids);
+
+    let matchedSalesForBatch: NormalizedEvent[] | null = null;
+    let saleGroupScore: LinkSignalBreakdown | null = null;
+
+    if (directOrderRefs.length > 0) {
+      const directMatch = collectSalesForOrderRefs({
+        orderRefs: directOrderRefs,
+        saleIndex,
+        matchedSaleIds,
+      });
+
+      if (directMatch.resolvedOrderRefs.size === new Set(directOrderRefs).size && directMatch.sales.length > 0) {
+        const directNetAmount = sumEventAmounts(directMatch.sales) - deductionTotal;
+        if (amountsWithinTolerance(directNetAmount, Number(bankMatch.bank.amount), COD_EXACT_MATCH_TOLERANCE)) {
+          matchedSalesForBatch = directMatch.sales;
+          saleGroupScore = computeLinkScore({
+            hasDirectIdLink: true,
+            expectedAmount: directNetAmount,
+            actualAmount: Number(remittance.amount),
+            date1: getLatestEventDate(directMatch.sales),
+            date2: remittance.event_date,
+            refString1: directOrderRefs.join(","),
+            refString2: batchRef,
+          });
+        }
+      }
+    }
+
+    if (!matchedSalesForBatch) {
+      const candidateSales = sales.filter((sale) => {
+        const saleId = sale.id || "";
+        if (saleId && matchedSaleIds.has(saleId)) return false;
+        return isSaleWithinWindowBeforeAnchor(
+          sale,
+          remittance.event_date,
+          COD_BATCH_MIN_AGE_DAYS,
+          COD_BATCH_MAX_AGE_DAYS
+        );
+      });
+
+      const subsetIndexes = findSubsetSumMatch(
+        Number(bankMatch.bank.amount) + deductionTotal,
+        candidateSales,
+        COD_SUBSET_SUM_TOLERANCE
+      );
+
+      if (!subsetIndexes || subsetIndexes.length === 0) {
+        continue;
+      }
+
+      matchedSalesForBatch = subsetIndexes.map((index) => candidateSales[index]);
+      saleGroupScore = computeLinkScore({
+        hasDirectIdLink: false,
+        expectedAmount: sumEventAmounts(matchedSalesForBatch) - deductionTotal,
+        actualAmount: Number(remittance.amount),
+        date1: getLatestEventDate(matchedSalesForBatch),
+        date2: remittance.event_date,
+        refString1: matchedSalesForBatch.map(getOrderRefForSale).join(","),
+        refString2: batchRef,
+      });
+    }
+
+    if (!matchedSalesForBatch || !saleGroupScore) {
+      continue;
+    }
+
+    const remittanceToBankScore = computeLinkScore({
+      hasDirectIdLink: true,
+      expectedAmount: Number(remittance.amount),
+      actualAmount: Number(bankMatch.bank.amount),
+      date1: remittance.event_date,
+      date2: bankMatch.bank.event_date,
+      refString1: batchRef,
+      refString2: bankMatch.bank.external_ref || getEventDescription(bankMatch.bank),
+    });
+
+    const matchedSalesNetAmount = sumEventAmounts(matchedSalesForBatch) - deductionTotal;
+    if (!amountsWithinTolerance(matchedSalesNetAmount, Number(bankMatch.bank.amount), COD_SUBSET_SUM_TOLERANCE)) {
+      continue;
+    }
+
+    for (const matchedSale of matchedSalesForBatch) {
+      if (matchedSale.id) matchedSaleIds.add(matchedSale.id);
+    }
+    if (remittanceId) matchedSettlementIds.add(remittanceId);
+    matchedBankIds.add(bankMatch.bank.id);
+
+    const linkConfidences = [saleGroupScore.total, remittanceToBankScore.total];
+    const chainConfidence = Math.min(...linkConfidences);
+    const chainEventIds = [
+      ...matchedSalesForBatch.map((sale) => sale.id || "").filter(Boolean),
+      remittance.id || "",
+      bankMatch.bank.id,
+      ...deductions.map((deduction) => deduction.id || "").filter(Boolean),
+    ];
+
+    matches.push({
+      order_ref: getRepresentativeOrderRef(matchedSalesForBatch, batchRef),
+      event_ids: Array.from(new Set(chainEventIds)),
+      match_type: directOrderRefs.length > 0 && saleGroupScore.id_signal === 100 ? "settlement_chain" : "amount_date_window",
+      confidence: chainConfidence,
+      status: chainConfidence >= 85 ? "auto_matched" : "proposed",
+      signals: {
+        sale_group_to_settlement: saleGroupScore,
+        remittance_to_bank: remittanceToBankScore,
+        settlement_to_bank: remittanceToBankScore,
+      },
+      events: {
+        sale: matchedSalesForBatch[0],
+        sales: matchedSalesForBatch,
+        fee: deductions[0],
+        fees: deductions,
+        settlement: remittance,
+        remittance,
+        bank: bankMatch.bank,
+      },
+    });
+  }
+
+  const unmatchedSales = sales.filter((sale) => !sale.id || !matchedSaleIds.has(sale.id));
   const unmatchedPayments = payments.filter((p) => p.id && !matchedPaymentIds.has(p.id));
-  const unmatchedSettlements = settlements.filter((s) => s.id && !matchedSettlementIds.has(s.id));
+  const unmatchedSettlements = [...settlements, ...codRemittances].filter((settlement) => !settlement.id || !matchedSettlementIds.has(settlement.id));
   const unmatchedBank = bankTxns.filter((b) => b.id && !matchedBankIds.has(b.id));
 
   return {
