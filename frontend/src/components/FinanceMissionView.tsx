@@ -44,6 +44,8 @@ interface SourceDoc {
     | "shopify_orders"
     | "razorpay_settlement"
     | "bank_statement"
+    | "generic_cod"
+    | "courier_settlement"
     | "vendor_invoice"
     | "support_export"
     | "unknown";
@@ -66,6 +68,9 @@ interface NormalizedEvent {
   order_id?: string | null;
   payment_id?: string | null;
   customer_id?: string | null;
+  batch_ref?: string | null;
+  order_ids?: string[] | null;
+  deduction_type?: string | null;
   metadata?: any;
   created_at: string;
 }
@@ -888,7 +893,7 @@ export const FinanceMissionView: React.FC = () => {
               <h2 className="step-heading">Source Documents & Heuristic Understanding</h2>
             </div>
             <p className="step-description">
-              Upload source CSVs (<code>shopify_orders.csv</code>, <code>razorpay_transactions.csv</code>, <code>bank_statement.csv</code>).
+              Upload source CSVs (<code>shopify_orders.csv</code>, <code>razorpay_transactions.csv</code>, <code>delhivery_cod.csv</code>, <code>bank_statement.csv</code>).
               The system inspects filename & header signatures to automatically classify each document.
             </p>
 
@@ -915,7 +920,7 @@ export const FinanceMissionView: React.FC = () => {
               <UploadCloud size={36} className="dropzone-icon" />
               <div className="dropzone-text">
                 <strong>Click or drop CSV files here to upload</strong>
-                <span>Supports multiple CSV files simultaneously</span>
+                <span>Supports multiple CSV files simultaneously (Shopify, Razorpay, COD Courier, Bank)</span>
               </div>
               {uploading && (
                 <div className="dropzone-loading">
@@ -956,6 +961,8 @@ export const FinanceMissionView: React.FC = () => {
                         >
                           <option value="shopify_orders">Shopify Orders</option>
                           <option value="razorpay_settlement">Razorpay Settlement</option>
+                          <option value="generic_cod">Generic COD Remittance</option>
+                          <option value="courier_settlement">Courier Settlement</option>
                           <option value="bank_statement">Bank Statement</option>
                           <option value="unknown">Unknown</option>
                         </select>
@@ -1605,6 +1612,12 @@ export const FinanceMissionView: React.FC = () => {
                 </span>
               </div>
               <div className="metric-cell">
+                <span className="metric-label">COD Remittances</span>
+                <span className="metric-value text-blue-600">
+                  {events.filter((e) => e.event_type === "COD_REMITTANCE").length}
+                </span>
+              </div>
+              <div className="metric-cell">
                 <span className="metric-label">Bank Entries</span>
                 <span className="metric-value text-amber">
                   {events.filter((e) => e.event_type === "BANK_TRANSACTION").length}
@@ -1634,6 +1647,10 @@ export const FinanceMissionView: React.FC = () => {
                   <option value="SETTLEMENT">SETTLEMENT</option>
                   <option value="BANK_TRANSACTION">BANK_TRANSACTION</option>
                   <option value="REFUND">REFUND</option>
+                  <option value="COD_REMITTANCE">COD_REMITTANCE</option>
+                  <option value="COD_DEDUCTION">COD_DEDUCTION</option>
+                  <option value="COD_COLLECTION">COD_COLLECTION</option>
+                  <option value="RTO_EVENT">RTO_EVENT</option>
                 </select>
 
                 <select
@@ -1644,13 +1661,14 @@ export const FinanceMissionView: React.FC = () => {
                   <option value="ALL">All Sources</option>
                   <option value="shopify">Shopify</option>
                   <option value="razorpay">Razorpay</option>
+                  <option value="courier">Courier / COD</option>
                   <option value="bank">Bank</option>
                 </select>
               </div>
 
               <input
                 type="text"
-                placeholder="Search reference, counterparty..."
+                placeholder="Search reference, counterparty, batch..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-input"
@@ -1664,7 +1682,7 @@ export const FinanceMissionView: React.FC = () => {
                   <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                     <th className="px-4 py-3">Event Type</th>
                     <th className="px-4 py-3">Source</th>
-                    <th className="px-4 py-3">External Ref</th>
+                    <th className="px-4 py-3">External / Batch Ref</th>
                     <th className="px-4 py-3">Amount (INR)</th>
                     <th className="px-4 py-3">Event Date</th>
                     <th className="px-4 py-3">Counterparty</th>
@@ -1686,15 +1704,34 @@ export const FinanceMissionView: React.FC = () => {
                       return (
                         <tr key={evt.id} className="hover:bg-slate-50/60 transition-colors">
                           <td className="px-4 py-3">
-                            <span className={`event-badge ${evt.event_type}`}>
-                              {evt.event_type}
-                            </span>
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className={`event-badge ${evt.event_type}`}>
+                                {evt.event_type}
+                              </span>
+                              {evt.deduction_type && (
+                                <span className="deduction-pill">
+                                  {evt.deduction_type}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 font-medium text-slate-700 capitalize">
                             <span className="source-tag">{evt.source_system}</span>
                           </td>
                           <td className="px-4 py-3">
-                            <code className="ref-code">{evt.external_ref || "—"}</code>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <code className="ref-code">{evt.external_ref || "—"}</code>
+                              {evt.batch_ref && evt.batch_ref !== evt.external_ref && (
+                                <span className="batch-pill" title={`Batch: ${evt.batch_ref}`}>
+                                  📦 {evt.batch_ref}
+                                </span>
+                              )}
+                              {evt.order_ids && evt.order_ids.length > 1 && (
+                                <span className="batch-pill" title={`Orders: ${evt.order_ids.join(", ")}`}>
+                                  {evt.order_ids.length} orders
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 font-semibold text-slate-900 font-mono">
                             ₹{Number(evt.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
@@ -1777,6 +1814,7 @@ export const FinanceMissionView: React.FC = () => {
                   {[
                     { id: "shopify", label: "Shopify Orders (Sales & Refunds)" },
                     { id: "razorpay", label: "Razorpay Gateway (Payments & Fees)" },
+                    { id: "generic_cod", label: "COD Courier Settlements (Delhivery, Shiprocket, Generic COD)" },
                     { id: "bank", label: "HDFC Bank Statement (Settlement Credits)" },
                   ].map((src) => (
                     <label key={src.id} className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer select-none">

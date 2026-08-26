@@ -1274,6 +1274,13 @@ body {
   border: 1px solid #fee2e2;
 }
 
+.badge-source.generic_cod,
+.badge-source.courier_settlement {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
 .confidence-pill {
   font-size: 0.7rem;
   color: var(--text-muted);
@@ -1479,6 +1486,30 @@ body {
 .event-badge.SETTLEMENT { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
 .event-badge.BANK_TRANSACTION { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
 .event-badge.REFUND { background: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; }
+.event-badge.COD_REMITTANCE { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.event-badge.COD_DEDUCTION { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+.event-badge.COD_COLLECTION { background: #f0fdfa; color: #0f766e; border: 1px solid #ccfbf1; }
+.event-badge.RTO_EVENT { background: #fdf2f8; color: #9d174d; border: 1px solid #fbcfe8; }
+
+.deduction-pill {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #ffedd5;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
+.batch-pill {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
 
 .source-tag {
   text-transform: capitalize;
