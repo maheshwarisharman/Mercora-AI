@@ -18,6 +18,13 @@ export function validateEvidenceAgainstTrace(params: {
   const seenSourceRefs = new Set<string>();
 
   for (const step of trace) {
+    if (step.toolName === "get_amazon_deduction_context") {
+      const result = step.result as any;
+      for (const ref of result?.evidence_refs || []) {
+        if (ref) seenSourceRefs.add(String(ref));
+      }
+      continue;
+    }
     if (step.toolName !== "search_evidence") continue;
     const result = step.result as any;
     if (!result?.results || !Array.isArray(result.results)) continue;

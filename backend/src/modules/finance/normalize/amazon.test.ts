@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { classifyAmazonLine, isAmazonSummaryRow, looksLikeAmazonSettlementHeaders, parseAmazonAmount } from "./amazon";
 import { parseCsvBufferToRecords } from "../extract/csv";
+import { validateEvidenceAgainstTrace } from "../investigate/validate";
 
 describe("Amazon Flat File V2 parsing", () => {
   test("recognises the real 24-column tab-delimited header and summary row", () => {
@@ -35,5 +36,20 @@ describe("Amazon Flat File V2 parsing", () => {
     expect(statutory.requiresAgent).toBe(false);
     expect(unknown.category).toBe("unrecognized_deduction");
     expect(unknown.requiresAgent).toBe(true);
+  });
+
+  test("accepts only Amazon refs actually returned by the context tool", () => {
+    const result = validateEvidenceAgainstTrace({
+      citedSourceRefs: ["event-real", "invented-ref"],
+      trace: [{
+        stepIndex: 0,
+        toolName: "get_amazon_deduction_context",
+        arguments: { exception_id: "ex" },
+        result: { evidence_refs: ["event-real"] },
+        timestamp: "2026-08-28T00:00:00.000Z",
+      }],
+    });
+    expect(result.validRefs).toEqual(["event-real"]);
+    expect(result.droppedRefs).toEqual(["invented-ref"]);
   });
 });

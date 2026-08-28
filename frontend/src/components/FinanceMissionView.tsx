@@ -89,7 +89,7 @@ interface ReconciledMatch {
 interface EvidenceItem {
   id: string;
   exception_id: string;
-  source_type: "support_ticket" | "refund_record" | "manual_note" | "invoice" | "email";
+  source_type: "support_ticket" | "refund_record" | "manual_note" | "invoice" | "email" | "amazon_settlement";
   content: string;
   source_ref?: string | null;
   relevance_score?: number | null;
@@ -625,7 +625,8 @@ export const FinanceMissionView: React.FC = () => {
       const matchRef = evt.external_ref?.toLowerCase().includes(term);
       const matchParty = evt.counterparty?.toLowerCase().includes(term);
       const matchType = evt.event_type?.toLowerCase().includes(term);
-      return matchRef || matchParty || matchType;
+      const matchDeduction = String(evt.metadata?.amount_description || evt.metadata?.deduction_label || "").toLowerCase().includes(term);
+      return matchRef || matchParty || matchType || matchDeduction;
     }
     return true;
   });

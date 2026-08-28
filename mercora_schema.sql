@@ -177,7 +177,7 @@ create type finance.exception_status as enum (
 );
 
 create type finance.evidence_source_type as enum (
-  'support_ticket', 'refund_record', 'manual_note', 'invoice', 'email'
+  'support_ticket', 'refund_record', 'manual_note', 'invoice', 'email', 'amazon_settlement'
 );
 
 create type finance.evidence_found_by as enum (

@@ -76,6 +76,11 @@ export async function getAmazonDeductionContext(args: Record<string, unknown>): 
     comparable_codes: Array.from(new Set(siblings.map((event: any) => event.metadata?.amount_description).filter(Boolean))),
     core_order: coreOrder,
     known_return_events: knownReturnEvents.map(compactEvent),
+    evidence_refs: Array.from(new Set([
+      amazonEvent.id,
+      amazonEvent.external_ref,
+      ...siblings.flatMap((event: any) => [event.id, event.external_ref]),
+    ].filter(Boolean))),
     lookback_policy: "Search the full mission history for return evidence; Amazon clawbacks can post 30–90 days after the order.",
   };
 }

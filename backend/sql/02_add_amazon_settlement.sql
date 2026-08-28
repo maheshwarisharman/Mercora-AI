@@ -6,4 +6,4 @@ ALTER TYPE finance.source_system ADD VALUE IF NOT EXISTS 'amazon';
 ALTER TYPE finance.exception_type ADD VALUE IF NOT EXISTS 'amazon_unknown_deduction';
 ALTER TYPE finance.exception_type ADD VALUE IF NOT EXISTS 'amazon_return_clawback';
 ALTER TYPE finance.exception_type ADD VALUE IF NOT EXISTS 'amazon_fee_anomaly';
-
+ALTER TYPE finance.evidence_source_type ADD VALUE IF NOT EXISTS 'amazon_settlement';

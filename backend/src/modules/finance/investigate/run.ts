@@ -84,7 +84,7 @@ const ExceptionJudgmentSchema = z.object({
   explanation: z.string(),
   evidence_ids: z
     .array(z.string())
-    .describe("source_refs of evidence items cited — must only reference items returned by search_evidence during this run"),
+    .describe("source_refs of evidence items cited — must only reference items returned by search_evidence or get_amazon_deduction_context during this run"),
   recommended_action: z.string(),
   merchant_category: z.enum([
     "referral fee",
@@ -188,7 +188,7 @@ ALLOWED CLASSIFICATIONS:
 CRITICAL RULES — THESE ARE NON-NEGOTIABLE:
 - You must NEVER state a cause you did not verify via a tool call.
 - For Amazon, never silently rename an unfamiliar amount-description. If the retrieved context does not support a confident merchant-facing category, classify it as REQUIRES_HUMAN_REVIEW and say which code remains unresolved.
-- evidence_ids in your final answer must ONLY be source_refs returned by search_evidence during THIS investigation.
+- evidence_ids in your final answer must ONLY be source_refs returned by search_evidence or evidence_refs returned by get_amazon_deduction_context during THIS investigation.
 - If no tool call returned evidence explaining the variance, classify as UNEXPLAINED or call request_human_review.
 - For an unfamiliar Amazon code, include merchant_category only when the retrieved Amazon context supports one of these labels: referral fee, closing fee, fulfillment fee, weight or handling fee, shipping fee, storage fee, return processing charge, promotional rebate, reserve or balance movement, marketplace tax or fee, other marketplace deduction, or unresolved.
 - Do not fabricate order references, amounts, dates, or evidence items.
@@ -239,7 +239,7 @@ Use your tools to investigate. Call get_exception_details first to see the full 
     recommended_action: String(
       raw.recommended_action ?? raw.recommendedAction ?? raw.action ?? raw.recommendation ?? "Review manually in financial portal."
     ),
-    merchant_category: typeof raw.merchant_category === "string" ? raw.merchant_category : undefined,
+    merchant_category: typeof raw.merchant_category === "string" ? raw.merchant_category.trim().toLowerCase() : undefined,
   };
 
   let judgment: ExceptionJudgment;
@@ -279,17 +279,29 @@ Use your tools to investigate. Call get_exception_details first to see the full 
   let insertedEvidenceIds: string[] = [];
 
   if (validRefs.length > 0) {
-    // Reconstruct evidence rows from search_evidence trace results
-    const searchResults: any[] = [];
+    // Reconstruct evidence rows only from tool results seen in this run.
+    const retrievedEvidence: any[] = [];
     for (const step of loopResult.trace) {
+      if (step.toolName === "get_amazon_deduction_context") {
+        const result = step.result as any;
+        const amazonLine = result?.amazon_line;
+        const siblings = Array.isArray(result?.settlement_siblings) ? result.settlement_siblings : [];
+        for (const item of [amazonLine, ...siblings]) {
+          if (!item) continue;
+          for (const ref of [item.id, item.external_ref]) {
+            if (ref) retrievedEvidence.push({ source_type: "amazon_settlement", source_ref: String(ref), content: `Verified Amazon settlement context: ${JSON.stringify(item)}`, relevance_score: 100 });
+          }
+        }
+        continue;
+      }
       if (step.toolName !== "search_evidence") continue;
       const result = step.result as any;
-      if (result?.results) searchResults.push(...result.results);
+      if (result?.results) retrievedEvidence.push(...result.results);
     }
 
     const evidenceRows = validRefs
       .map((ref) => {
-        const item = searchResults.find((r: any) => r.source_ref === ref);
+        const item = retrievedEvidence.find((r: any) => r.source_ref === ref);
         if (!item) return null;
         return {
           exception_id: exceptionId,
@@ -297,7 +309,7 @@ Use your tools to investigate. Call get_exception_details first to see the full 
           content: item.content,
           source_ref: item.source_ref,
           relevance_score: item.relevance_score,
-          found_by: "agent_loop",
+          found_by: "gemini_retrieval",
         };
       })
       .filter((row): row is NonNullable<typeof row> => row !== null);
