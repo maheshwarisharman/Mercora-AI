@@ -106,6 +106,7 @@ exceptionsRouter.post(
             explanation: investigateResult.explanation,
             evidence_ids: investigateResult.evidence_ids,
             recommended_action: investigateResult.recommended_action,
+            merchant_category: investigateResult.merchant_category,
             model: investigateResult.model,
           },
           // Agent trace — rendered by the frontend ReasoningTrace component

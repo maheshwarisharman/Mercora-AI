@@ -81,11 +81,13 @@ export interface BankCreditResolution {
  */
 export const BANK_CREDIT_SOURCE_KEYWORDS: Record<string, string[]> = {
   razorpay: ["razorpay", "rzp", "razor pay"],
+  amazon: ["amazon", "amazon pay", "amazon marketplace", "amzn"],
   courier: ["delhivery", "delivery", "dlvry", "cod", "remittance", "shiprocket", "ecom express", "xpressbees", "bluedart", "shadowfax"],
 };
 
 const DEFAULT_BANK_CREDIT_DATE_WINDOWS: Record<string, BankCreditDateWindow> = {
   razorpay: { minDays: 2, maxDays: 3, idealDays: 2 },
+  amazon: { minDays: 0, maxDays: 14, idealDays: 3 },
   courier: { minDays: 5, maxDays: 20, idealDays: 7 },
 };
 
@@ -276,6 +278,9 @@ function getBankNarration(event: NormalizedEvent): string {
 function getCandidateSource(event: NormalizedEvent): BankCreditCandidateSource | null {
   const canonicalSource = String(event.metadata?.canonical_source_system || event.source_system || "").toLowerCase();
   const canonicalType = getCanonicalEventType(event);
+  if (canonicalSource === "amazon" && (canonicalType === "AMAZON_SETTLEMENT" || canonicalType === "SETTLEMENT" || event.event_type === "SETTLEMENT")) {
+    return "amazon";
+  }
   if (canonicalSource === "razorpay" && (canonicalType === "SETTLEMENT" || event.event_type === "SETTLEMENT")) {
     return "razorpay";
   }
@@ -713,6 +718,12 @@ function isSaleWithinWindowBeforeAnchor(
   return diffDays >= minDays && diffDays <= maxDays;
 }
 
+function getMarketplaceSaleWindow(remittance: NormalizedEvent): { minDays: number; maxDays: number } {
+  return remittance.source_system === "amazon" || remittance.metadata?.canonical_source_system === "amazon"
+    ? { minDays: 0, maxDays: 90 }
+    : { minDays: COD_BATCH_MIN_AGE_DAYS, maxDays: COD_BATCH_MAX_AGE_DAYS };
+}
+
 function collectSalesForOrderRefs(params: {
   orderRefs: string[];
   saleIndex: Map<string, NormalizedEvent[]>;
@@ -884,12 +895,15 @@ export function matchMissionEvents(events: NormalizedEvent[], options: MatchMiss
   const fees = events.filter((event) => event.event_type === "FEE" && getCanonicalEventType(event) === "FEE");
   const settlements = events.filter((event) => event.event_type === "SETTLEMENT" && getCanonicalEventType(event) === "SETTLEMENT");
   const codRemittances = events.filter((event) => getCanonicalEventType(event) === "COD_REMITTANCE");
+  const amazonSettlements = events.filter((event) => getCanonicalEventType(event) === "AMAZON_SETTLEMENT");
+  const marketplaceRemittances = [...codRemittances, ...amazonSettlements];
   const codDeductions = events.filter((event) => getCanonicalEventType(event) === "COD_DEDUCTION");
+  const amazonDeductions = events.filter((event) => event.source_system === "amazon" && event.metadata?.is_deduction === true);
   const bankTxns = events.filter(isBankCreditEvent);
 
   const bankCreditResolutions = resolveBankCreditCandidates({
     bankCredits: bankTxns,
-    candidates: [...settlements, ...codRemittances],
+    candidates: [...settlements, ...marketplaceRemittances],
     config: options.bankCreditDisambiguation,
   });
   const resolutionByBankId = new Map(
@@ -911,7 +925,7 @@ export function matchMissionEvents(events: NormalizedEvent[], options: MatchMiss
   // the matcher; this map only applies already-validated assignments.
   for (const [bankId, candidateId] of Object.entries(options.bankCreditAssignments || {})) {
     const bank = bankTxns.find((event) => event.id === bankId);
-    const candidate = [...settlements, ...codRemittances].find((event) => event.id === candidateId);
+    const candidate = [...settlements, ...marketplaceRemittances].find((event) => event.id === candidateId);
     if (!bank || !candidate) continue;
     const existingBank = bankByCandidateId.get(candidateId);
     if (existingBank && existingBank.id !== bankId) continue;
@@ -932,7 +946,7 @@ export function matchMissionEvents(events: NormalizedEvent[], options: MatchMiss
     if (!bank || candidateIds.length < 2) continue;
 
     const validCandidateIds = candidateIds.filter((candidateId) =>
-      [...settlements, ...codRemittances].some((event) => event.id === candidateId)
+      [...settlements, ...marketplaceRemittances].some((event) => event.id === candidateId)
     );
     if (validCandidateIds.length !== candidateIds.length) continue;
     if (validCandidateIds.some((candidateId) => {
@@ -1163,7 +1177,7 @@ export function matchMissionEvents(events: NormalizedEvent[], options: MatchMiss
   }
 
   const saleIndex = buildSaleIndex(sales);
-  const codDeductionsByBatch = buildCodDeductionIndex(codDeductions);
+  const codDeductionsByBatch = buildCodDeductionIndex([...codDeductions, ...amazonDeductions]);
 
   // Aggregate bank credits (for example, a courier payout covering many
   // delivered orders) must be matched as one bank -> remittance group. The
@@ -1307,7 +1321,7 @@ export function matchMissionEvents(events: NormalizedEvent[], options: MatchMiss
     });
   }
 
-  for (const remittance of codRemittances) {
+  for (const remittance of marketplaceRemittances) {
     const remittanceId = remittance.id || "";
     if (remittanceId && matchedSettlementIds.has(remittanceId)) continue;
     if (remittanceId && protectedCombinedCandidateIds.has(remittanceId)) continue;
@@ -1372,11 +1386,12 @@ export function matchMissionEvents(events: NormalizedEvent[], options: MatchMiss
       const candidateSales = sales.filter((sale) => {
         const saleId = sale.id || "";
         if (saleId && matchedSaleIds.has(saleId)) return false;
+        const window = getMarketplaceSaleWindow(remittance);
         return isSaleWithinWindowBeforeAnchor(
           sale,
           remittance.event_date,
-          COD_BATCH_MIN_AGE_DAYS,
-          COD_BATCH_MAX_AGE_DAYS
+          window.minDays,
+          window.maxDays
         );
       });
 
@@ -1461,7 +1476,7 @@ export function matchMissionEvents(events: NormalizedEvent[], options: MatchMiss
 
   const unmatchedSales = sales.filter((sale) => !sale.id || !matchedSaleIds.has(sale.id));
   const unmatchedPayments = payments.filter((p) => p.id && !matchedPaymentIds.has(p.id));
-  const unmatchedSettlements = [...settlements, ...codRemittances].filter((settlement) => !settlement.id || !matchedSettlementIds.has(settlement.id));
+  const unmatchedSettlements = [...settlements, ...marketplaceRemittances].filter((settlement) => !settlement.id || !matchedSettlementIds.has(settlement.id));
   const unmatchedBank = bankTxns.filter((b) => b.id && !matchedBankIds.has(b.id));
 
   return {

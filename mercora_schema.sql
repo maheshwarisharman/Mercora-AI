@@ -133,7 +133,7 @@ create type finance.mission_status as enum (
 );
 
 create type finance.detected_source as enum (
-  'shopify_orders', 'razorpay_settlement', 'bank_statement',
+  'shopify_orders', 'razorpay_settlement', 'amazon_settlement', 'bank_statement',
   'generic_cod', 'courier_settlement',
   'vendor_invoice', 'support_export', 'unknown'
 );
@@ -154,7 +154,7 @@ create type finance.event_type as enum (
 );
 
 create type finance.source_system as enum (
-  'shopify', 'razorpay', 'bank', 'courier', 'cod', 'vendor', 'manual'
+  'shopify', 'razorpay', 'amazon', 'bank', 'courier', 'cod', 'vendor', 'manual'
 );
 
 create type finance.match_type as enum (
@@ -167,7 +167,9 @@ create type finance.match_status as enum (
 
 create type finance.exception_type as enum (
   'timing_difference', 'gateway_fee', 'refund', 'partial_refund',
-  'duplicate', 'missing_settlement', 'missing_bank_credit', 'ambiguous_bank_credit', 'unexplained_difference'
+  'duplicate', 'missing_settlement', 'missing_bank_credit', 'ambiguous_bank_credit',
+  'unexplained_difference', 'amazon_unknown_deduction', 'amazon_return_clawback',
+  'amazon_fee_anomaly'
 );
 
 create type finance.exception_status as enum (

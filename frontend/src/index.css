@@ -1281,6 +1281,12 @@ body {
   border: 1px solid #bfdbfe;
 }
 
+.badge-source.amazon_settlement {
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
 .confidence-pill {
   font-size: 0.7rem;
   color: var(--text-muted);
@@ -1490,6 +1496,7 @@ body {
 .event-badge.COD_DEDUCTION { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
 .event-badge.COD_COLLECTION { background: #f0fdfa; color: #0f766e; border: 1px solid #ccfbf1; }
 .event-badge.RTO_EVENT { background: #fdf2f8; color: #9d174d; border: 1px solid #fbcfe8; }
+.event-badge.AMAZON_SETTLEMENT { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
 
 .deduction-pill {
   font-size: 0.65rem;
@@ -1636,6 +1643,98 @@ body {
 .exception-badge.timing_difference { background: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
 .exception-badge.duplicate { background: #fdf4ff; color: #86198f; border: 1px solid #f5d0fe; }
 .exception-badge.unexplained_difference { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
+.exception-badge.amazon_unknown_deduction,
+.exception-badge.amazon_return_clawback,
+.exception-badge.amazon_fee_anomaly { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+
+.amazon-reconciliation-panel {
+  margin-top: 24px;
+  border: 1px solid #fed7aa;
+  background: #fffbeb;
+  overflow: hidden;
+}
+
+.amazon-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px;
+  border-bottom: 1px solid #fde68a;
+}
+
+.amazon-kicker {
+  color: #b45309;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.amazon-panel-heading h3 {
+  margin: 4px 0 3px;
+  color: #451a03;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.amazon-panel-heading p {
+  margin: 0;
+  color: #92400e;
+  font-size: 0.75rem;
+}
+
+.amazon-panel-count {
+  flex: 0 0 auto;
+  color: #78350f;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding-top: 2px;
+}
+
+.amazon-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: #fde68a;
+  border-bottom: 1px solid #fde68a;
+}
+
+.amazon-summary-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 16px;
+  background: #fffbeb;
+}
+
+.amazon-summary-grid strong {
+  color: #451a03;
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+}
+
+.amazon-summary-grid span {
+  color: #92400e;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.amazon-line-table-wrap { overflow-x: auto; background: #fff; }
+.amazon-line-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.72rem; }
+.amazon-line-table th { padding: 10px 14px; background: #fff7ed; color: #92400e; font-size: 0.63rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.amazon-line-table td { padding: 10px 14px; border-top: 1px solid #f1f5f9; color: #334155; white-space: nowrap; }
+.amazon-line-table code { color: #7c2d12; font-family: var(--font-mono); font-size: 0.68rem; }
+.amazon-amount { color: #0f172a !important; font-family: var(--font-mono); font-weight: 700; }
+.amazon-decision { display: inline-block; border: 0; background: transparent; font-size: 0.65rem; font-weight: 700; }
+.amazon-decision.expected, .amazon-decision.classified { color: #047857; }
+.amazon-decision.review { color: #c2410c; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+
+@media (max-width: 720px) {
+  .amazon-panel-heading { flex-direction: column; gap: 8px; }
+  .amazon-summary-grid { grid-template-columns: 1fr; }
+}
 
 .status-badge-sm {
   display: inline-block;
@@ -1831,4 +1930,3 @@ body {
   color: var(--text-muted);
   margin-bottom: 8px;
 }
-

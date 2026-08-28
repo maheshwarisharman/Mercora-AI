@@ -25,6 +25,54 @@ function event(overrides: Partial<NormalizedEvent>): NormalizedEvent {
 }
 
 describe("bank credit disambiguation scorer", () => {
+  test("reconciles an Amazon settlement batch after a long lookback with line deductions", () => {
+    const sale = event({
+      id: "amazon-sale",
+      event_type: "SALE",
+      source_system: "amazon",
+      amount: 1000,
+      event_date: "2026-08-01",
+      external_ref: "#MRC-24001",
+      metadata: { canonical_event_type: "SALE", canonical_source_system: "amazon", order_ref: "#MRC-24001" },
+    });
+    const settlement = event({
+      id: "amazon-settlement",
+      event_type: "SETTLEMENT",
+      source_system: "amazon",
+      amount: 889,
+      event_date: "2026-10-01",
+      external_ref: "amz-set-1",
+      order_ids: ["#MRC-24001"],
+      metadata: { canonical_event_type: "AMAZON_SETTLEMENT", canonical_source_system: "amazon", amazon_settlement_id: "amz-set-1" },
+    });
+    const fee = event({
+      id: "amazon-fee",
+      event_type: "FEE",
+      source_system: "amazon",
+      amount: 111,
+      event_date: "2026-08-02",
+      external_ref: "amz-set-1:line-2",
+      batch_ref: "amz-set-1",
+      metadata: { canonical_event_type: "FEE", canonical_source_system: "amazon", is_deduction: true, amount_description: "Commission" },
+    });
+    const bank = event({
+      id: "amazon-bank",
+      event_type: "BANK_TRANSACTION",
+      source_system: "bank",
+      amount: 889,
+      event_date: "2026-10-03",
+      external_ref: "NEFT AMAZON MARKETPLACE amz-set-1",
+      counterparty: "Amazon Marketplace settlement",
+      metadata: { canonical_event_type: "BANK_CREDIT", canonical_source_system: "bank" },
+    });
+
+    const result = matchMissionEvents([sale, settlement, fee, bank]);
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]?.events.settlement?.id).toBe("amazon-settlement");
+    expect(result.matches[0]?.events.sales?.[0]?.id).toBe("amazon-sale");
+    expect(result.matches[0]?.event_ids).toContain("amazon-fee");
+  });
+
   test("ranks exact amount, expected date, and narration evidence highest", () => {
     const bank = event({
       id: "bank-1",

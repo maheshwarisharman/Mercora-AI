@@ -6,6 +6,7 @@ import { getServiceSupabase, getOrCreateMerchant } from "../../../shared/db/supa
 import { writeAuditLog } from "../shared/audit";
 import { downloadSourceFile } from "../ingest/storage";
 import { classifyDocumentHeuristic } from "./classify";
+import { detectCsvDelimiter } from "../extract/csv";
 import type { SourceDocument } from "../shared/types";
 
 export const understandRouter = Router();
@@ -14,6 +15,7 @@ const OverrideSourceSchema = z.object({
   detected_source: z.enum([
     "shopify_orders",
     "razorpay_settlement",
+    "amazon_settlement",
     "bank_statement",
     "generic_cod",
     "courier_settlement",
@@ -69,6 +71,7 @@ understandRouter.post(
         const parsed = Papa.parse(textContent, {
           preview: 2, // parse only header and first row
           header: false,
+          delimiter: detectCsvDelimiter(textContent),
           skipEmptyLines: true,
         });
 

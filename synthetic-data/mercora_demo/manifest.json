@@ -4,6 +4,7 @@
   "upload_order": [
     "orders.csv",
     "pg_gateway_settlements.csv",
+    "amazon_settlement.txt",
     "cod_remittances.csv",
     "bank_transactions.csv"
   ],
@@ -28,7 +29,9 @@
       "missing_settlement",
       "missing_bank_credit",
       "unexplained_difference",
-      "ambiguous_bank_credit"
+      "ambiguous_bank_credit",
+      "amazon_unknown_deduction",
+      "amazon_return_clawback"
     ]
   },
   "anomaly_legend": {

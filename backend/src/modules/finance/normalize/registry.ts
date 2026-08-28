@@ -3,6 +3,7 @@ import { ShopifyAdapter } from "./adapters/shopify.adapter";
 import { RazorpayAdapter } from "./adapters/razorpay.adapter";
 import { BankAdapter } from "./adapters/bank.adapter";
 import { GenericCodAdapter } from "./adapters/generic-cod.adapter";
+import { AmazonAdapter } from "./adapters/amazon.adapter";
 
 export class NormalizerRegistry {
   private adapters = new Map<string, SourceNormalizerAdapter>();
@@ -18,6 +19,7 @@ export class NormalizerRegistry {
     this.register(new ShopifyAdapter());
     this.register(new RazorpayAdapter());
     this.register(new BankAdapter());
+    this.register(new AmazonAdapter());
 
     const genericCod = new GenericCodAdapter();
     this.register(genericCod);

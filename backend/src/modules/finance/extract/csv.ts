@@ -1,6 +1,15 @@
 import Papa from "papaparse";
 import type { ExtractedRecord } from "../shared/types";
 
+/** Amazon Flat File V2 is tab-delimited despite often being downloaded with a
+ * .csv/.txt extension. Detect tabs before handing the file to Papa Parse. */
+export function detectCsvDelimiter(text: string): "\t" | "," | ";" {
+  const firstNonEmptyLine = text.split(/\r?\n/).find((line) => line.trim().length > 0) || "";
+  if (firstNonEmptyLine.includes("\t")) return "\t";
+  if (firstNonEmptyLine.includes(";")) return ";";
+  return ",";
+}
+
 /**
  * Parses raw CSV buffer into finance.extracted_records format.
  * Preserves raw_json untouched with exact CSV header keys.
@@ -15,6 +24,7 @@ export function parseCsvBufferToRecords(params: {
 
   const parseResult = Papa.parse<Record<string, any>>(textContent, {
     header: true,
+    delimiter: detectCsvDelimiter(textContent),
     skipEmptyLines: "greedy",
     transformHeader: (header) => header.trim(),
   });

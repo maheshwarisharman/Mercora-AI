@@ -86,6 +86,21 @@ const ExceptionJudgmentSchema = z.object({
     .array(z.string())
     .describe("source_refs of evidence items cited — must only reference items returned by search_evidence during this run"),
   recommended_action: z.string(),
+  merchant_category: z.enum([
+    "referral fee",
+    "closing fee",
+    "fulfillment fee",
+    "weight or handling fee",
+    "shipping fee",
+    "storage fee",
+    "return processing charge",
+    "promotional rebate",
+    "statutory tax withholding",
+    "reserve or balance movement",
+    "marketplace tax or fee",
+    "other marketplace deduction",
+    "unresolved",
+  ]).optional(),
 });
 
 export type ExceptionJudgment = z.infer<typeof ExceptionJudgmentSchema>;
@@ -98,6 +113,7 @@ export interface InvestigateResult {
   explanation: string;
   evidence_ids: string[];
   recommended_action: string;
+  merchant_category?: string;
   trace: AgentTraceStep[];
   hitStepBudget: boolean;
   model: string;
@@ -146,15 +162,17 @@ AVAILABLE TOOLS:
 - get_bank_credit: Fetch a bank credit's exact narration, amount, and date.
 - list_candidate_batches: List only currently-unmatched Razorpay/courier batches in a requested range.
 - get_narration_history: Retrieve confirmed narration precedents for a source.
+- get_amazon_deduction_context: Retrieve the verified Amazon line item, sibling deductions, original order, and Shopify return events.
 - search_evidence: Search support tickets and refund records with filters you choose.
 - request_human_review: Escalate when evidence is genuinely insufficient after investigation.
 
 INVESTIGATION PROTOCOL:
 1. Always start with get_exception_details to understand the discrepancy.
 2. Use get_transaction_chain to verify the payment chain if order refs are available.
-3. Use search_evidence with specific filters based on what you've learned — not blindly.
-4. If evidence clearly explains the discrepancy, proceed to a confident classification.
-5. If evidence is genuinely absent or ambiguous after searching, call request_human_review.
+3. For an Amazon exception, call get_amazon_deduction_context and reason over its exact code, signed amount, comparable settlement lines, and full-lookback return context.
+4. Use search_evidence with specific filters based on what you've learned — not blindly.
+5. If evidence clearly explains the discrepancy, proceed to a confident classification.
+6. If evidence is genuinely absent or ambiguous after searching, call request_human_review.
 
 ALLOWED CLASSIFICATIONS:
 - MATCHED: Discrepancy fully explained by natural rounding or data alignment.
@@ -169,8 +187,10 @@ ALLOWED CLASSIFICATIONS:
 
 CRITICAL RULES — THESE ARE NON-NEGOTIABLE:
 - You must NEVER state a cause you did not verify via a tool call.
+- For Amazon, never silently rename an unfamiliar amount-description. If the retrieved context does not support a confident merchant-facing category, classify it as REQUIRES_HUMAN_REVIEW and say which code remains unresolved.
 - evidence_ids in your final answer must ONLY be source_refs returned by search_evidence during THIS investigation.
 - If no tool call returned evidence explaining the variance, classify as UNEXPLAINED or call request_human_review.
+- For an unfamiliar Amazon code, include merchant_category only when the retrieved Amazon context supports one of these labels: referral fee, closing fee, fulfillment fee, weight or handling fee, shipping fee, storage fee, return processing charge, promotional rebate, reserve or balance movement, marketplace tax or fee, other marketplace deduction, or unresolved.
 - Do not fabricate order references, amounts, dates, or evidence items.
 - Confidence scores must reflect actual evidence quality — not optimism.`;
 
@@ -219,6 +239,7 @@ Use your tools to investigate. Call get_exception_details first to see the full 
     recommended_action: String(
       raw.recommended_action ?? raw.recommendedAction ?? raw.action ?? raw.recommendation ?? "Review manually in financial portal."
     ),
+    merchant_category: typeof raw.merchant_category === "string" ? raw.merchant_category : undefined,
   };
 
   let judgment: ExceptionJudgment;
@@ -304,6 +325,38 @@ Use your tools to investigate. Call get_exception_details first to see the full 
 
   await supabase.schema("finance").from("exceptions").update({ status: newStatus }).eq("id", exceptionId);
 
+  // Persist an agent-resolved merchant category on the exact Amazon line(s)
+  // without letting that label affect any financial arithmetic. The category
+  // is accepted only through the constrained structured response above.
+  if (
+    normalized.merchant_category &&
+    normalized.merchant_category !== "unresolved" &&
+    ["amazon_unknown_deduction", "amazon_return_clawback", "amazon_fee_anomaly"].includes(exception.exception_type)
+  ) {
+    const { data: linkedAmazonEvents } = await supabase
+      .schema("finance")
+      .from("normalized_events")
+      .select("id, metadata")
+      .in("id", exception.normalized_event_ids || [])
+      .eq("source_system", "amazon");
+    for (const amazonEvent of linkedAmazonEvents || []) {
+      await supabase
+        .schema("finance")
+        .from("normalized_events")
+        .update({
+          metadata: {
+            ...(amazonEvent.metadata || {}),
+            deduction_label: normalized.merchant_category,
+            deduction_category: "agent_classified",
+            classification_method: "agent_context",
+            classification_confidence: normalized.confidence,
+            classification_reason: normalized.explanation,
+          },
+        })
+        .eq("id", amazonEvent.id);
+    }
+  }
+
   // ── Insert judgment row ────────────────────────────────────────────────────
   const { data: judgmentRow, error: jErr } = await supabase
     .schema("finance")
@@ -349,6 +402,7 @@ Use your tools to investigate. Call get_exception_details first to see the full 
     explanation: finalExplanation,
     evidence_ids: insertedEvidenceIds,
     recommended_action: judgment.recommended_action,
+    merchant_category: judgment.merchant_category,
     trace: loopResult.trace,
     hitStepBudget: loopResult.hitStepBudget,
     model: llm.name,

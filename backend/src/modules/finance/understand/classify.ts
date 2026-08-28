@@ -1,5 +1,6 @@
 import type { DetectedSource, DetectionMethod } from "../shared/types";
 import { looksLikeShopifyOrderHeaders } from "../normalize/shopify";
+import { looksLikeAmazonSettlementHeaders } from "../normalize/amazon";
 
 export interface ClassificationResult {
   detected_source: DetectedSource;
@@ -35,12 +36,16 @@ export function classifyDocumentHeuristic(
     lowerName.includes("ecom")
   ) {
     filenameCandidate = "generic_cod";
+  } else if (lowerName.includes("amazon") || lowerName.includes("mtr")) {
+    filenameCandidate = "amazon_settlement";
   } else if (
     lowerName.includes("razorpay") ||
     lowerName.includes("settlement") ||
     lowerName.includes("payment")
   ) {
-    filenameCandidate = "razorpay_settlement";
+    filenameCandidate = lowerName.includes("amazon") || lowerName.includes("mtr")
+      ? "amazon_settlement"
+      : "razorpay_settlement";
   } else if (
     lowerName.includes("bank") ||
     lowerName.includes("statement") ||
@@ -62,6 +67,8 @@ export function classifyDocumentHeuristic(
       looksLikeShopifyOrderHeaders(headers || [])
     ) {
       headerCandidate = "shopify_orders";
+    } else if (looksLikeAmazonSettlementHeaders(headers || [])) {
+      headerCandidate = "amazon_settlement";
     } else if (
       hasHeader("codamount") &&
       (hasHeader("reforderid") || hasHeader("orderid") || hasHeader("awb")) &&

@@ -5,6 +5,7 @@ import { searchEvidenceDefinition, searchEvidence } from "./searchEvidence";
 import { getMissionSummaryDefinition, getMissionSummary } from "./missionSummary";
 import { listOpenExceptionsDefinition, listOpenExceptions } from "./listOpenExceptions";
 import { requestHumanReviewDefinition, requestHumanReview } from "./requestHumanReview";
+import { getAmazonDeductionContextDefinition, getAmazonDeductionContext } from "./amazonDeductionContext";
 import {
   getBankCreditDefinition,
   listCandidateBatchesDefinition,
@@ -33,6 +34,7 @@ export const financeToolDefinitions: ToolDefinition[] = [
   getBankCreditDefinition,
   listCandidateBatchesDefinition,
   getNarrationHistoryDefinition,
+  getAmazonDeductionContextDefinition,
 ];
 
 /**
@@ -49,6 +51,7 @@ export function createFinanceToolImplementations(
     get_mission_summary: (args) => getMissionSummary(args),
     list_open_exceptions: (args) => listOpenExceptions(args),
     request_human_review: (args) => requestHumanReview(args, ctx),
+    get_amazon_deduction_context: (args) => getAmazonDeductionContext(args),
     ...createBankCreditToolImplementations(ctx),
   };
 }
@@ -64,6 +67,7 @@ export {
   getBankCredit,
   listCandidateBatches,
   getNarrationHistory,
+  getAmazonDeductionContext,
 };
 
 export type { EvidenceResult } from "./searchEvidence";

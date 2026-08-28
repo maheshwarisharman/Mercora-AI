@@ -11,7 +11,10 @@ export interface DetectedException {
     | "missing_settlement"
     | "missing_bank_credit"
     | "ambiguous_bank_credit"
-    | "unexplained_difference";
+    | "unexplained_difference"
+    | "amazon_unknown_deduction"
+    | "amazon_return_clawback"
+    | "amazon_fee_anomaly";
   normalized_event_ids: string[];
   expected_amount: number;
   actual_amount: number;
@@ -61,6 +64,59 @@ export function detectMissionExceptions(events: NormalizedEvent[], options: {
     return direction !== "debit" && direction !== "dr" &&
       (e.event_type === "BANK_TRANSACTION" || e.event_type === "BANK_CREDIT" || e.metadata?.canonical_event_type === "BANK_CREDIT");
   });
+
+  // Amazon's code vocabulary is intentionally open-ended. Known statutory
+  // withholdings are never exceptions; only unknown codes, suspicious weight
+  // charges, and return clawbacks without corroborating return evidence are.
+  const amazonEvents = events.filter((event) =>
+    String(event.metadata?.canonical_source_system || event.source_system).toLowerCase() === "amazon"
+  );
+  const shopifyRefunds = events.filter((event) =>
+    String(event.metadata?.canonical_source_system || event.source_system).toLowerCase() === "shopify" &&
+    canonicalType(event) === "REFUND"
+  );
+  const amazonExceptionSignatures = new Set<string>();
+  for (const event of amazonEvents) {
+    const metadata = event.metadata || {};
+    if (!metadata.is_deduction || metadata.is_statutory_withholding === true || !event.id) continue;
+
+    const addAmazonException = (exception_type: DetectedException["exception_type"]) => {
+      const signature = `${exception_type}:${event.id}`;
+      if (amazonExceptionSignatures.has(signature)) return;
+      amazonExceptionSignatures.add(signature);
+      const amount = Math.abs(Number(event.amount || 0));
+      const orderRef = String(event.metadata?.order_ref || "");
+      const relatedSale = sales.find((sale) =>
+        (event.order_id && sale.order_id && event.order_id === sale.order_id) ||
+        (orderRef && (sale.external_ref === orderRef || sale.metadata?.order_ref === orderRef))
+      );
+      exceptions.push({
+        exception_type,
+        normalized_event_ids: [event.id, relatedSale?.id].filter((id): id is string => Boolean(id)).slice(0, 21),
+        expected_amount: amount,
+        actual_amount: 0,
+        difference: amount,
+        status: "open",
+      });
+    };
+
+    const flags = Array.isArray(metadata.anomaly_flags) ? metadata.anomaly_flags.map(String) : [];
+    if (metadata.deduction_category === "unrecognized_deduction") {
+      addAmazonException("amazon_unknown_deduction");
+    }
+    if (flags.includes("weight_charge_over_10_percent_of_order")) {
+      addAmazonException("amazon_fee_anomaly");
+    }
+    if (metadata.is_return_clawback === true) {
+      const hasKnownReturn = shopifyRefunds.some((refund) => {
+        const sameOrder = Boolean(event.order_id && refund.order_id && event.order_id === refund.order_id) ||
+          Boolean(metadata.order_ref && (refund.external_ref === metadata.order_ref || refund.metadata?.order_ref === metadata.order_ref));
+        if (!sameOrder) return false;
+        return Math.abs(Number(refund.amount || 0) - Math.abs(Number(event.amount || 0))) <= 1 || !refund.amount;
+      });
+      if (!hasKnownReturn) addAmazonException("amazon_return_clawback");
+    }
+  }
 
   // Fee lookup map
   const feeByPaymentKey = new Map<string, NormalizedEvent>();

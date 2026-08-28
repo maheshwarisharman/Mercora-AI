@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Wrench, CheckCircle2, Clock } from "lucide-react";
+import { ChevronDown, ChevronRight, CheckCircle2, Clock } from "lucide-react";
 
 export interface AgentTraceStep {
   stepIndex: number;
@@ -20,6 +20,8 @@ function summariseArgs(toolName: string, args: Record<string, unknown>): string 
   switch (toolName) {
     case "get_exception_details":
       return `exception ${String(args.exception_id || "").slice(0, 8)}…`;
+    case "get_amazon_deduction_context":
+      return `Amazon exception ${String(args.exception_id || "").slice(0, 8)}…`;
     case "get_transaction_chain":
       return `order ref "${args.order_ref}"`;
     case "search_evidence": {
@@ -51,6 +53,7 @@ function summariseArgs(toolName: string, args: Record<string, unknown>): string 
 function toolLabel(toolName: string): string {
   const labels: Record<string, string> = {
     get_exception_details: "Fetch Exception Details",
+    get_amazon_deduction_context: "Inspect Amazon Deduction Context",
     get_transaction_chain: "Trace Transaction Chain",
     search_evidence: "Search Evidence",
     get_mission_summary: "Mission Summary",
@@ -71,19 +74,6 @@ function toolBorderClass(toolName: string): string {
     request_human_review: "border-rose-400",
   };
   return colours[toolName] || "border-slate-300";
-}
-
-/** Badge background per tool */
-function toolBadgeClass(toolName: string): string {
-  const colours: Record<string, string> = {
-    get_exception_details: "bg-blue-50 text-blue-700 ring-blue-200",
-    get_transaction_chain: "bg-violet-50 text-violet-700 ring-violet-200",
-    search_evidence: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    get_mission_summary: "bg-amber-50 text-amber-700 ring-amber-200",
-    list_open_exceptions: "bg-cyan-50 text-cyan-700 ring-cyan-200",
-    request_human_review: "bg-rose-50 text-rose-700 ring-rose-200",
-  };
-  return colours[toolName] || "bg-slate-50 text-slate-700 ring-slate-200";
 }
 
 const TraceStep: React.FC<{ step: AgentTraceStep; index: number; isLast: boolean }> = ({

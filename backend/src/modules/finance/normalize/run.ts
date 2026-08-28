@@ -118,6 +118,8 @@ export async function runMissionNormalization(params: {
         lowerName.includes("ecom")
       ) {
         source = "generic_cod";
+      } else if (lowerName.includes("amazon") || lowerName.includes("mtr")) {
+        source = "amazon_settlement";
       }
     }
 
@@ -176,6 +178,7 @@ export async function runMissionNormalization(params: {
     else if (evt.event_type === "COD_COLLECTION") dbEventType = "PAYMENT" as any;
     else if (evt.event_type === "COD_DEDUCTION") dbEventType = "FEE" as any;
     else if (evt.event_type === "RTO_EVENT") dbEventType = "ADJUSTMENT" as any;
+    else if (evt.event_type === "AMAZON_SETTLEMENT") dbEventType = "SETTLEMENT" as any;
 
     const isCourier = evt.source_system === "courier" || evt.source_system === "cod";
     const dbSourceSystem = isCourier ? "vendor" : evt.source_system;

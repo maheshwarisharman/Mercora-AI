@@ -65,6 +65,7 @@ export type MissionStatus =
 export type DetectedSource =
   | 'shopify_orders'
   | 'razorpay_settlement'
+  | 'amazon_settlement'
   | 'bank_statement'
   | 'generic_cod'
   | 'courier_settlement'
@@ -100,7 +101,8 @@ export type EventType =
   | 'COD_COLLECTION'
   | 'COD_REMITTANCE'
   | 'COD_DEDUCTION'
-  | 'RTO_EVENT';
+  | 'RTO_EVENT'
+  | 'AMAZON_SETTLEMENT';
 
 export type DeductionType =
   | 'HANDLING_FEE'
@@ -113,6 +115,7 @@ export type DeductionType =
 export type SourceSystem =
   | 'shopify'
   | 'razorpay'
+  | 'amazon'
   | 'bank'
   | 'courier'
   | 'cod'

@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Sparkles,
   Layers,
   ShieldAlert,
   Plus,
@@ -43,6 +42,7 @@ interface SourceDoc {
   detected_source:
     | "shopify_orders"
     | "razorpay_settlement"
+    | "amazon_settlement"
     | "bank_statement"
     | "generic_cod"
     | "courier_settlement"
@@ -139,7 +139,10 @@ interface MissionException {
     | "missing_settlement"
     | "missing_bank_credit"
     | "ambiguous_bank_credit"
-    | "unexplained_difference";
+    | "unexplained_difference"
+    | "amazon_unknown_deduction"
+    | "amazon_return_clawback"
+    | "amazon_fee_anomaly";
   expected_amount: number;
   actual_amount: number;
   difference: number;
@@ -635,6 +638,14 @@ export const FinanceMissionView: React.FC = () => {
   const totalVolume = events.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   const autoMatchedCount = matches.filter((m) => m.status === "auto_matched").length;
   const proposedCount = matches.filter((m) => m.status === "proposed").length;
+  const amazonLineEvents = events.filter((event) => event.source_system === "amazon" && event.metadata?.amount_description);
+  const amazonStatutoryCount = amazonLineEvents.filter((event) => event.metadata?.is_statutory_withholding).length;
+  const amazonAgentCount = amazonLineEvents.filter((event) => event.metadata?.classification_method === "agent_required").length;
+  const amazonCategoryCounts = amazonLineEvents.reduce<Record<string, number>>((counts, event) => {
+    const category = String(event.metadata?.deduction_label || event.deduction_type || "Unclassified");
+    counts[category] = (counts[category] || 0) + 1;
+    return counts;
+  }, {});
 
   // Filtered Missions for SaaS Table
   const filteredMissions = missions.filter((m) => {
@@ -894,7 +905,7 @@ export const FinanceMissionView: React.FC = () => {
               <h2 className="step-heading">Source Documents & Heuristic Understanding</h2>
             </div>
             <p className="step-description">
-              Upload source CSVs (<code>shopify_orders.csv</code>, <code>razorpay_transactions.csv</code>, <code>delhivery_cod.csv</code>, <code>bank_statement.csv</code>).
+              Upload source files (<code>shopify_orders.csv</code>, <code>razorpay_transactions.csv</code>, <code>amazon_settlement.txt</code>, <code>delhivery_cod.csv</code>, <code>bank_statement.csv</code>).
               The system inspects filename & header signatures to automatically classify each document.
             </p>
 
@@ -914,14 +925,14 @@ export const FinanceMissionView: React.FC = () => {
                 type="file"
                 ref={fileInputRef}
                 multiple
-                accept=".csv"
+                accept=".csv,.txt"
                 style={{ display: "none" }}
                 onChange={(e) => handleFileUpload(e.target.files)}
               />
               <UploadCloud size={36} className="dropzone-icon" />
               <div className="dropzone-text">
-                <strong>Click or drop CSV files here to upload</strong>
-                <span>Supports multiple CSV files simultaneously (Shopify, Razorpay, COD Courier, Bank)</span>
+                <strong>Click or drop CSV / TXT files here to upload</strong>
+                <span>Supports Shopify, Razorpay, Amazon Flat File V2, COD Courier, and Bank exports</span>
               </div>
               {uploading && (
                 <div className="dropzone-loading">
@@ -962,6 +973,7 @@ export const FinanceMissionView: React.FC = () => {
                         >
                           <option value="shopify_orders">Shopify Orders</option>
                           <option value="razorpay_settlement">Razorpay Settlement</option>
+                          <option value="amazon_settlement">Amazon Flat File V2</option>
                           <option value="generic_cod">Generic COD Remittance</option>
                           <option value="courier_settlement">Courier Settlement</option>
                           <option value="bank_statement">Bank Statement</option>
@@ -982,7 +994,7 @@ export const FinanceMissionView: React.FC = () => {
               <h2 className="step-heading">Extract & Normalize Canonical Events</h2>
             </div>
             <p className="step-description">
-              Parses raw tabular rows into <code>finance.extracted_records</code> and transforms them into canonical <code>finance.normalized_events</code> (SALES, PAYMENTS, FEES, SETTLEMENTS, COD_REMITTANCES, BANK_TRANSACTIONS).
+              Parses raw tabular rows into <code>finance.extracted_records</code> and transforms them into canonical <code>finance.normalized_events</code>. Amazon Flat File V2 rows stay line-level so every fee, withholding, refund, and unfamiliar code is inspectable.
             </p>
 
             <div className="pipeline-action-row">
@@ -1042,7 +1054,7 @@ export const FinanceMissionView: React.FC = () => {
               <h2 className="step-heading">Deterministic Reconciliation & Exception Detection</h2>
             </div>
             <p className="step-description">
-              Traverses the available financial paths: <code>SALE → PAYMENT → SETTLEMENT → BANK_TRANSACTION</code> for payment-gateway data and <code>SALE(S) → COD_REMITTANCE → BANK_TRANSACTION</code> for courier data. Links are scored using deterministic ID, amount, date window, and fuzzy reference matching.
+              Traverses <code>SALE → PAYMENT → SETTLEMENT → BANK_TRANSACTION</code>, <code>SALE(S) → COD_REMITTANCE → BANK_TRANSACTION</code>, and <code>SALE(S) → AMAZON_SETTLEMENT → BANK_TRANSACTION</code>. Amazon batches use a 90-day order lookback; arithmetic and bank matching remain deterministic.
             </p>
 
             <div className="pipeline-action-row">
@@ -1092,7 +1104,50 @@ export const FinanceMissionView: React.FC = () => {
                   ))}
                 </div>
               </div>
-            )} <br />
+            )}
+
+            {amazonLineEvents.length > 0 && (
+              <section className="amazon-reconciliation-panel" aria-labelledby="amazon-reconciliation-heading">
+                <div className="amazon-panel-heading">
+                  <div>
+                    <div className="amazon-kicker">Amazon settlement intelligence</div>
+                    <h3 id="amazon-reconciliation-heading">Every deduction line, accounted for</h3>
+                    <p>Known fees are classified deterministically. New codes and return clawbacks are queued for agent investigation.</p>
+                  </div>
+                  <div className="amazon-panel-count">{amazonLineEvents.length} line items</div>
+                </div>
+                <div className="amazon-summary-grid">
+                  <div><strong>{amazonStatutoryCount}</strong><span>statutory withholdings excluded from anomalies</span></div>
+                  <div><strong>{amazonAgentCount}</strong><span>lines needing contextual agent review</span></div>
+                  <div><strong>{Object.keys(amazonCategoryCounts).length}</strong><span>merchant-facing categories detected</span></div>
+                </div>
+                <div className="amazon-line-table-wrap">
+                  <table className="amazon-line-table">
+                    <thead><tr><th>Code</th><th>Category</th><th>Order</th><th>Amount</th><th>Decision</th></tr></thead>
+                    <tbody>
+                      {amazonLineEvents.map((event) => {
+                        const linkedException = exceptions.find((exception) => exception.normalized_event_ids.includes(event.id));
+                        const requiresAgent = event.metadata?.classification_method === "agent_required";
+                        return (
+                          <tr key={event.id}>
+                            <td><code>{event.metadata?.amount_description || event.metadata?.amount_type || "Adjustment"}</code></td>
+                            <td>{event.metadata?.deduction_label || event.deduction_type || "Unclassified"}</td>
+                            <td>{event.metadata?.order_ref || "Settlement-level"}</td>
+                            <td className="amazon-amount">₹{Number(event.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+                            <td>
+                              {event.metadata?.is_statutory_withholding ? <span className="amazon-decision expected">Expected statutory</span> :
+                                requiresAgent && linkedException ? <button className="amazon-decision review" onClick={() => scrollToException(linkedException.id)}>Investigate with agent</button> :
+                                requiresAgent ? <span className="amazon-decision review">Agent review queued</span> :
+                                <span className="amazon-decision classified">Classified</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
 
             {/* 4A. MATCHES TABLE */}
             {matches.length > 0 && (
@@ -1131,9 +1186,6 @@ export const FinanceMissionView: React.FC = () => {
 
                         const saleEvt = linkedEvts.find((e) => e.event_type === "SALE");
                         const orderRef = saleEvt?.external_ref || saleEvt?.metadata?.order_number || m.id.slice(0, 8);
-
-                        const isHigh = m.confidence >= 85;
-                        const isMed = m.confidence >= 50 && m.confidence < 85;
 
                         return (
                           <tr key={m.id} className="hover:bg-slate-50/60 transition-colors">
@@ -1646,6 +1698,7 @@ export const FinanceMissionView: React.FC = () => {
                   <option value="PAYMENT">PAYMENT</option>
                   <option value="FEE">FEE</option>
                   <option value="SETTLEMENT">SETTLEMENT</option>
+                  <option value="AMAZON_SETTLEMENT">AMAZON_SETTLEMENT</option>
                   <option value="BANK_TRANSACTION">BANK_TRANSACTION</option>
                   <option value="REFUND">REFUND</option>
                   <option value="COD_REMITTANCE">COD_REMITTANCE</option>
@@ -1662,6 +1715,7 @@ export const FinanceMissionView: React.FC = () => {
                   <option value="ALL">All Sources</option>
                   <option value="shopify">Shopify</option>
                   <option value="razorpay">Razorpay</option>
+                  <option value="amazon">Amazon Marketplace</option>
                   <option value="courier">Courier / COD</option>
                   <option value="bank">Bank</option>
                 </select>
@@ -1815,6 +1869,7 @@ export const FinanceMissionView: React.FC = () => {
                   {[
                     { id: "shopify", label: "Shopify Orders (Sales & Refunds)" },
                     { id: "razorpay", label: "Razorpay Gateway (Payments & Fees)" },
+                    { id: "amazon", label: "Amazon Marketplace (Flat File V2 fees, returns & taxes)" },
                     { id: "generic_cod", label: "COD Courier Settlements (Delhivery, Shiprocket, Generic COD)" },
                     { id: "bank", label: "HDFC Bank Statement (Settlement Credits)" },
                   ].map((src) => (
