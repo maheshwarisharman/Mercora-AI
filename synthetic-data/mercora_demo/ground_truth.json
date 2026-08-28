@@ -238,5 +238,32 @@
     "batch_ref": "COD-BATCH-MRC-0823",
     "anomaly": null,
     "note": "Clean COD remittance row; eight rows aggregate into one courier bank credit."
+  },
+  {
+    "order_id": "#MRC-24025",
+    "channel": "AMAZON",
+    "gross_amount": 1299,
+    "settlement_id": "AMZ-DEMO-2026-08-001",
+    "deductions": ["Commission -129.90", "FBAWeightBasedFee -90.00", "ItemTCS -12.00", "ItemTDS -1.30"],
+    "anomaly": null,
+    "note": "Clean Amazon order; only known fee/statutory codes, weight fee is under the 10% anomaly threshold."
+  },
+  {
+    "order_id": "#MRC-24026",
+    "channel": "AMAZON",
+    "gross_amount": 2499,
+    "settlement_id": "AMZ-DEMO-2026-08-001",
+    "deductions": ["Commission -249.90", "VariableClosingFee -25.00", "NewMarketplaceCode -75.00"],
+    "anomaly": "amazon_unknown_deduction",
+    "note": "NewMarketplaceCode does not match any recognized Amazon amount-description vocabulary."
+  },
+  {
+    "order_id": "#MRC-24027",
+    "channel": "AMAZON",
+    "gross_amount": 1799,
+    "settlement_id": "AMZ-DEMO-2026-08-001",
+    "deductions": ["Principal refund -1799.00 (2026-10-01)", "ReturnShipping -80.00 (2026-10-01)"],
+    "anomaly": "amazon_return_clawback",
+    "note": "Return posts ~60 days after the order with no matching Shopify refund event in orders.csv."
   }
 ]

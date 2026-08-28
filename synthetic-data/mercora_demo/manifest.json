@@ -9,16 +9,18 @@
     "bank_transactions.csv"
   ],
   "counts": {
-    "orders": 24,
+    "orders": 27,
     "pg_rows": 17,
+    "amazon_orders": 3,
     "cod_rows": 8,
     "bank_rows": 18,
     "bank_credits": 16
   },
   "totals": {
-    "order_value": 60276,
+    "order_value": 65873,
     "cod_remittance": 20692,
-    "pg_gross": 39584
+    "pg_gross": 39584,
+    "amazon_gross": 5597
   },
   "expected_demo_result": {
     "clean_pg_chains": 14,
@@ -40,6 +42,8 @@
     "missing_settlement": "PG order MRC-24009 has a captured payment but no settlement_id/net_amount.",
     "missing_bank_credit": "PG order MRC-24013 has a settlement but no bank credit.",
     "unexplained_difference": "PG order MRC-24015 bank credit is ₹10 below expected net.",
-    "unmatched_bank_credit": "₹750 bank credit has no source settlement and should remain an exception."
+    "unmatched_bank_credit": "₹750 bank credit has no source settlement and should remain an exception.",
+    "amazon_unknown_deduction": "Amazon order MRC-24026 has a NewMarketplaceCode deduction that doesn't match any known Amazon fee vocabulary.",
+    "amazon_return_clawback": "Amazon order MRC-24027 has a delayed (2026-10-01) Principal + ReturnShipping clawback with no corroborating Shopify refund event."
   }
 }
