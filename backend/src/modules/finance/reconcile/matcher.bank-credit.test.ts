@@ -3,6 +3,7 @@ import {
   rankBankCreditCandidates,
   resolveBankCreditDeterministically,
   resolveBankCreditCandidates,
+  matchMissionEvents,
 } from "./matcher";
 import { runBankCreditFallback } from "./disambiguate";
 import type { NormalizedEvent } from "../shared/types";
@@ -91,6 +92,90 @@ describe("bank credit disambiguation scorer", () => {
     const resolutions = resolveBankCreditCandidates({ bankCredits: [bank, secondBank], candidates: [first] });
     expect(resolutions.filter((item) => item.status === "deterministic")).toHaveLength(1);
     expect(resolutions.filter((item) => item.status === "ambiguous")).toHaveLength(1);
+  });
+
+  test("resolves an aggregate courier bank credit to multiple remittance rows", () => {
+    const bank = event({
+      id: "bank-courier-group",
+      event_type: "BANK_TRANSACTION",
+      source_system: "bank",
+      amount: 300,
+      event_date: "2026-08-11",
+      counterparty: "Tensor Logistics COD remittance",
+    });
+    const firstRemittance = event({
+      id: "cod-1",
+      event_type: "COD_REMITTANCE",
+      source_system: "courier",
+      amount: 125,
+      event_date: "2026-08-01",
+      counterparty: "Shipmozo",
+    });
+    const secondRemittance = event({
+      id: "cod-2",
+      event_type: "COD_REMITTANCE",
+      source_system: "courier",
+      amount: 175,
+      event_date: "2026-08-02",
+      counterparty: "Shipmozo",
+    });
+
+    const [resolution] = resolveBankCreditCandidates({
+      bankCredits: [bank],
+      candidates: [firstRemittance, secondRemittance],
+    });
+
+    expect(resolution?.status).toBe("combined_batches");
+    expect(resolution?.combined_candidate_ids).toEqual(["cod-1", "cod-2"]);
+    expect(resolution?.resolution_method).toBe("deterministic");
+  });
+
+  test("does not assign a provider-specific credit to unrelated courier rows", () => {
+    const bank = event({
+      id: "bank-shadowfax",
+      event_type: "BANK_TRANSACTION",
+      source_system: "bank",
+      amount: 300,
+      event_date: "2026-08-11",
+      counterparty: "NEFT CR - SHADOWFAX TECHNOLOGIES LIMITED",
+    });
+    const firstRemittance = event({ id: "cod-amazon-1", event_type: "COD_REMITTANCE", source_system: "courier", amount: 125, event_date: "2026-08-01", counterparty: "Amazon ATS" });
+    const secondRemittance = event({ id: "cod-amazon-2", event_type: "COD_REMITTANCE", source_system: "courier", amount: 175, event_date: "2026-08-02", counterparty: "Amazon ATS" });
+
+    const [resolution] = resolveBankCreditCandidates({
+      bankCredits: [bank],
+      candidates: [firstRemittance, secondRemittance],
+    });
+
+    expect(resolution?.status).toBe("ambiguous");
+    expect(resolution?.combined_candidate_ids).toBeUndefined();
+  });
+
+  test("matches sales and multiple COD remittances to one aggregate bank credit", () => {
+    const sales = [
+      event({ id: "sale-1", event_type: "SALE", source_system: "shopify", amount: 125, event_date: "2026-08-01", external_ref: "#HBM-1" }),
+      event({ id: "sale-2", event_type: "SALE", source_system: "shopify", amount: 175, event_date: "2026-08-02", external_ref: "#HBM-2" }),
+    ];
+    const remittances = [
+      event({ id: "cod-sale-1", event_type: "COD_REMITTANCE", source_system: "courier", amount: 125, event_date: "2026-08-06", order_ids: ["#HBM-1"], metadata: { courier_partner: "Shipmozo", order_id: "#HBM-1" } }),
+      event({ id: "cod-sale-2", event_type: "COD_REMITTANCE", source_system: "courier", amount: 175, event_date: "2026-08-07", order_ids: ["#HBM-2"], metadata: { courier_partner: "Shipmozo", order_id: "#HBM-2" } }),
+    ];
+    const bank = event({
+      id: "bank-aggregate",
+      event_type: "BANK_TRANSACTION",
+      source_system: "bank",
+      amount: 300,
+      event_date: "2026-08-12",
+      counterparty: "Tensor Logistics COD remittance",
+    });
+
+    const result = matchMissionEvents([...sales, ...remittances, bank]);
+
+    expect(result.matches).toHaveLength(1);
+    expect(result.matches[0]?.status).toBe("auto_matched");
+    expect(result.matches[0]?.events.remittances?.map((item) => item.id)).toEqual(["cod-sale-1", "cod-sale-2"]);
+    expect(result.matches[0]?.events.sales?.map((item) => item.id)).toEqual(["sale-1", "sale-2"]);
+    expect(result.matches[0]?.events.bank?.id).toBe("bank-aggregate");
   });
 
   test("rejects an LLM candidate ID that is absent from the exact ranked list", async () => {

@@ -106,6 +106,7 @@ export async function runMissionReconciliation(params: {
   );
 
   const llmAssignments: Record<string, string> = {};
+  const llmCombinedAssignments: Record<string, string[]> = {};
   const fallbackResolutions = new Map<string, BankCreditResolution>();
   const llmCandidateIds = new Set<string>();
   const deterministicCandidateIds = new Set(
@@ -132,6 +133,24 @@ export async function runMissionReconciliation(params: {
         llmAssignments[resolution.bank_credit.id] = fallback.resolution.chosen_candidate_id;
         llmCandidateIds.add(fallback.resolution.chosen_candidate_id);
       } else if (
+        fallback.resolution.status === "combined_batches" &&
+        fallback.resolution.combined_candidate_ids &&
+        fallback.resolution.combined_candidate_ids.length >= 2 &&
+        resolution.bank_credit.id
+      ) {
+        const combinedCandidateIds = fallback.resolution.combined_candidate_ids;
+        const conflicts = combinedCandidateIds.some((candidateId) =>
+          deterministicCandidateIds.has(candidateId) || llmCandidateIds.has(candidateId)
+        );
+        if (!conflicts) {
+          llmCombinedAssignments[resolution.bank_credit.id] = combinedCandidateIds;
+          combinedCandidateIds.forEach((candidateId) => llmCandidateIds.add(candidateId));
+        } else {
+          fallback.resolution.status = "insufficient_evidence";
+          fallback.resolution.combined_candidate_ids = [];
+          fallback.resolution.reasoning = "The selected combined candidates overlap another bank-credit assignment.";
+        }
+      } else if (
         fallback.resolution.status === "llm_resolved" &&
         fallback.resolution.chosen_candidate_id &&
         (deterministicCandidateIds.has(fallback.resolution.chosen_candidate_id) || llmCandidateIds.has(fallback.resolution.chosen_candidate_id))
@@ -155,9 +174,10 @@ export async function runMissionReconciliation(params: {
 
   // Re-run the pure matcher with only validated LLM assignments. The matcher
   // never receives an unlisted candidate ID.
-  if (Object.keys(llmAssignments).length > 0) {
+  if (Object.keys(llmAssignments).length > 0 || Object.keys(llmCombinedAssignments).length > 0) {
     matchResult = matchMissionEvents(typedEvents, {
       bankCreditAssignments: llmAssignments,
+      bankCreditCombinedAssignments: llmCombinedAssignments,
       bankCreditDisambiguation: disambiguationConfig,
     });
   }

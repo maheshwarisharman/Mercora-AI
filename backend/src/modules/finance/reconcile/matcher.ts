@@ -118,6 +118,7 @@ export interface ReconciledChain {
     fees?: NormalizedEvent[];
     settlement?: NormalizedEvent;
     remittance?: NormalizedEvent;
+    remittances?: NormalizedEvent[];
     bank?: NormalizedEvent;
   };
 }
@@ -133,6 +134,7 @@ export interface MatchResult {
 
 export interface MatchMissionOptions {
   bankCreditAssignments?: Record<string, string>;
+  bankCreditCombinedAssignments?: Record<string, string[]>;
   bankCreditDisambiguation?: BankCreditDisambiguationConfig;
 }
 
@@ -500,6 +502,65 @@ export function resolveBankCreditDeterministically(params: {
   return resolution;
 }
 
+function findCourierCombinedCandidateIds(params: {
+  bankCredit: NormalizedEvent;
+  candidates: BankCreditCandidate[];
+  config: BankCreditDisambiguationConfig;
+}): string[] {
+  const { bankCredit, candidates, config } = params;
+  const narration = getBankNarration(bankCredit);
+  const courierKeywords = BANK_CREDIT_SOURCE_KEYWORDS.courier || [];
+  const genericCourierSignals = ["cod", "remittance", "logistics", "courier", "transport"];
+  const getPartnerKeywords = (candidate: BankCreditCandidate): string[] => {
+    const values = [
+      candidate.event.counterparty,
+      candidate.event.metadata?.courier_partner,
+      candidate.event.metadata?.courier_code,
+    ]
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter((value) => value.length >= 3);
+    return Array.from(new Set([
+      ...values,
+      ...values.flatMap((value) => value.split(/\s+/).filter((token) => token.length >= 4)),
+    ]));
+  };
+  const courierCandidates = candidates.filter((candidate) => candidate.source === "courier");
+  const matchedPartnerKeywords = Array.from(new Set(
+    courierCandidates
+      .flatMap(getPartnerKeywords)
+      .filter((keyword) => narration.includes(keyword))
+  ));
+  const matchedSpecificSourceKeyword = courierKeywords
+    .filter((keyword) => !genericCourierSignals.includes(keyword))
+    .some((keyword) => narration.includes(keyword));
+  if (matchedSpecificSourceKeyword && matchedPartnerKeywords.length === 0) return [];
+
+  const hasCourierSignal = courierKeywords.some((keyword) => narration.includes(keyword)) ||
+    genericCourierSignals.some((keyword) => narration.includes(keyword));
+  if (!hasCourierSignal) return [];
+
+  const eligible = candidates.filter((candidate) => {
+    if (candidate.source !== "courier") return false;
+    if (matchedPartnerKeywords.length > 0 && !matchedPartnerKeywords.some((keyword) => getPartnerKeywords(candidate).includes(keyword))) {
+      return false;
+    }
+    const dateDifference = getSignedDateDifferenceDays(candidate.date, bankCredit.event_date);
+    if (dateDifference === null) return false;
+    const window = getDateWindow("courier", candidate, config);
+    return dateDifference >= window.minDays && dateDifference <= window.maxDays;
+  });
+  if (eligible.length < 2) return [];
+
+  const subsetIndexes = findSubsetSumMatch(
+    Number(bankCredit.amount),
+    eligible.map((candidate) => candidate.event),
+    config.amountToleranceRupees ?? 1
+  );
+  if (!subsetIndexes || subsetIndexes.length < 2) return [];
+
+  return subsetIndexes.map((index) => eligible[index].id);
+}
+
 export function resolveBankCreditCandidates(params: {
   bankCredits: NormalizedEvent[];
   candidates: NormalizedEvent[];
@@ -516,8 +577,9 @@ export function resolveBankCreditCandidates(params: {
     }))
     .sort((left, right) => right.confidence - left.confidence);
 
-  // Enforce one bank credit per source batch. The strongest deterministic
-  // decision wins; a collision is left for the LLM/human review path.
+  // Enforce one bank credit per source batch. Single-candidate deterministic
+  // decisions take precedence; then an exact aggregate courier payout may
+  // claim a group of COD rows as one combined candidate.
   const claimed = new Set<string>();
   for (const resolution of resolutions) {
     if (resolution.status !== "deterministic" || !resolution.chosen_candidate_id) continue;
@@ -529,6 +591,37 @@ export function resolveBankCreditCandidates(params: {
       continue;
     }
     claimed.add(resolution.chosen_candidate_id);
+  }
+
+  const combinedProposals = resolutions
+    .filter((resolution) => resolution.status === "ambiguous")
+    .map((resolution) => {
+      const candidateIds = findCourierCombinedCandidateIds({
+        bankCredit: resolution.bank_credit,
+        candidates: candidateRecords,
+        config: params.config || {},
+      });
+      const candidateAmount = candidateIds.reduce((sum, candidateId) => {
+        const candidate = candidateRecords.find((item) => item.id === candidateId);
+        return sum + Number(candidate?.amount || 0);
+      }, 0);
+      const coverage = candidateAmount > 0 ? Number(resolution.bank_credit.amount || 0) / candidateAmount : 0;
+      return { resolution, candidateIds, coverage };
+    })
+    .filter((proposal) => proposal.candidateIds.length >= 2)
+    .sort((left, right) => right.coverage - left.coverage || right.candidateIds.length - left.candidateIds.length);
+
+  for (const proposal of combinedProposals) {
+    if (proposal.candidateIds.some((candidateId) => claimed.has(candidateId))) continue;
+
+    proposal.resolution.status = "combined_batches";
+    proposal.resolution.chosen_candidate_id = null;
+    proposal.resolution.combined_candidate_ids = proposal.candidateIds;
+    proposal.resolution.confidence = Math.min(100, 80 + Math.round(proposal.coverage * 20));
+    proposal.resolution.margin = 20;
+    proposal.resolution.resolution_method = "deterministic";
+    proposal.resolution.reasoning = "The bank credit exactly matches a date-compatible group of courier remittance rows.";
+    proposal.candidateIds.forEach((candidateId) => claimed.add(candidateId));
   }
 
   return resolutions.sort((left, right) => String(left.bank_credit.id).localeCompare(String(right.bank_credit.id)));
@@ -643,6 +736,14 @@ function collectSalesForOrderRefs(params: {
   }
 
   return { sales: collected, resolvedOrderRefs };
+}
+
+function getRemittanceOrderRefs(remittance: NormalizedEvent): string[] {
+  const orderIds = Array.isArray(remittance.order_ids) ? remittance.order_ids : [];
+  return normalizeStringArray([
+    ...orderIds,
+    remittance.metadata?.order_id,
+  ]);
 }
 
 function buildCodDeductionIndex(deductions: NormalizedEvent[]): Map<string, NormalizedEvent[]> {
@@ -794,6 +895,11 @@ export function matchMissionEvents(events: NormalizedEvent[], options: MatchMiss
     if (resolution.chosen_candidate_id && (resolution.status === "deterministic" || resolution.status === "llm_resolved")) {
       bankByCandidateId.set(resolution.chosen_candidate_id, resolution.bank_credit);
     }
+    if (resolution.status === "combined_batches") {
+      for (const candidateId of resolution.combined_candidate_ids || []) {
+        bankByCandidateId.set(candidateId, resolution.bank_credit);
+      }
+    }
   }
   // LLM assignments are supplied as bank-credit ID -> candidate event ID. The
   // caller validates these IDs against the exact ranked list before invoking
@@ -809,6 +915,34 @@ export function matchMissionEvents(events: NormalizedEvent[], options: MatchMiss
     if (resolution) {
       resolution.status = "llm_resolved";
       resolution.chosen_candidate_id = candidateId;
+      resolution.resolution_method = "llm";
+    }
+  }
+
+  // LLM combined-batch assignments are validated by the caller against the
+  // exact ranked candidate list before they reach the matcher. Every member
+  // of a combined group points to the same bank credit for aggregate matching.
+  for (const [bankId, candidateIds] of Object.entries(options.bankCreditCombinedAssignments || {})) {
+    const bank = bankTxns.find((event) => event.id === bankId);
+    if (!bank || candidateIds.length < 2) continue;
+
+    const validCandidateIds = candidateIds.filter((candidateId) =>
+      [...settlements, ...codRemittances].some((event) => event.id === candidateId)
+    );
+    if (validCandidateIds.length !== candidateIds.length) continue;
+    if (validCandidateIds.some((candidateId) => {
+      const existingBank = bankByCandidateId.get(candidateId);
+      return existingBank && existingBank.id !== bankId;
+    })) continue;
+
+    for (const candidateId of validCandidateIds) {
+      bankByCandidateId.set(candidateId, bank);
+    }
+    const resolution = resolutionByBankId.get(bankId);
+    if (resolution) {
+      resolution.status = "combined_batches";
+      resolution.chosen_candidate_id = null;
+      resolution.combined_candidate_ids = validCandidateIds;
       resolution.resolution_method = "llm";
     }
   }
@@ -1026,9 +1160,152 @@ export function matchMissionEvents(events: NormalizedEvent[], options: MatchMiss
   const saleIndex = buildSaleIndex(sales);
   const codDeductionsByBatch = buildCodDeductionIndex(codDeductions);
 
+  // Aggregate bank credits (for example, a courier payout covering many
+  // delivered orders) must be matched as one bank -> remittance group. The
+  // single-remittance loop below is kept for sources that provide real batch
+  // references, but must not split an already-resolved combined assignment.
+  const protectedCombinedCandidateIds = new Set<string>();
+  const courierGroups = bankCreditResolutions.flatMap((resolution) => {
+    const candidateIds = resolution.combined_candidate_ids || [];
+    if (resolution.status !== "combined_batches" || candidateIds.length < 2) return [];
+    candidateIds.forEach((candidateId) => protectedCombinedCandidateIds.add(candidateId));
+
+    const bank = resolution.bank_credit;
+    const remittances = candidateIds
+      .map((candidateId) => codRemittances.find((remittance) => remittance.id === candidateId))
+      .filter((remittance): remittance is NormalizedEvent => Boolean(remittance));
+    return bank.id && remittances.length >= 2 ? [{ bank, remittances, resolution }] : [];
+  });
+
+  for (const group of courierGroups) {
+    const bankId = group.bank.id || "";
+    if (!bankId || matchedBankIds.has(bankId)) continue;
+
+    const remittances = group.remittances.filter((remittance) =>
+      !remittance.id || !matchedSettlementIds.has(remittance.id)
+    );
+    if (remittances.length < 2) continue;
+
+    const remittanceTotal = sumEventAmounts(remittances);
+    if (!amountsWithinTolerance(remittanceTotal, Number(group.bank.amount), COD_SUBSET_SUM_TOLERANCE)) {
+      continue;
+    }
+
+    const deductions = remittances.flatMap((remittance) => codDeductionsByBatch.get(getBatchRef(remittance)) || []);
+    const deductionTotal = sumEventAmounts(deductions);
+    const directOrderRefs = Array.from(new Set(remittances.flatMap(getRemittanceOrderRefs)));
+
+    let matchedSalesForBatch: NormalizedEvent[] | null = null;
+    let saleGroupScore: LinkSignalBreakdown | null = null;
+
+    if (directOrderRefs.length > 0) {
+      const directMatch = collectSalesForOrderRefs({
+        orderRefs: directOrderRefs,
+        saleIndex,
+        matchedSaleIds,
+      });
+      if (directMatch.resolvedOrderRefs.size === new Set(directOrderRefs.map((ref) => normalizeLookupValue(ref))).size && directMatch.sales.length > 0) {
+        const directNetAmount = sumEventAmounts(directMatch.sales) - deductionTotal;
+        if (amountsWithinTolerance(directNetAmount, Number(group.bank.amount), COD_SUBSET_SUM_TOLERANCE)) {
+          matchedSalesForBatch = directMatch.sales;
+          saleGroupScore = computeLinkScore({
+            hasDirectIdLink: true,
+            expectedAmount: directNetAmount,
+            actualAmount: Number(group.bank.amount),
+            date1: getLatestEventDate(directMatch.sales),
+            date2: group.bank.event_date,
+            refString1: directOrderRefs.join(","),
+            refString2: group.bank.external_ref || getEventDescription(group.bank),
+          });
+        }
+      }
+    }
+
+    if (!matchedSalesForBatch) {
+      const candidateSales = sales.filter((sale) => {
+        const saleId = sale.id || "";
+        if (saleId && matchedSaleIds.has(saleId)) return false;
+        return isSaleWithinWindowBeforeAnchor(
+          sale,
+          group.bank.event_date,
+          COD_BATCH_MIN_AGE_DAYS,
+          COD_BATCH_MAX_AGE_DAYS
+        );
+      });
+      const subsetIndexes = findSubsetSumMatch(
+        Number(group.bank.amount) + deductionTotal,
+        candidateSales,
+        COD_SUBSET_SUM_TOLERANCE
+      );
+      if (subsetIndexes && subsetIndexes.length > 0) {
+        matchedSalesForBatch = subsetIndexes.map((index) => candidateSales[index]);
+        saleGroupScore = computeLinkScore({
+          hasDirectIdLink: false,
+          expectedAmount: sumEventAmounts(matchedSalesForBatch) - deductionTotal,
+          actualAmount: Number(group.bank.amount),
+          date1: getLatestEventDate(matchedSalesForBatch),
+          date2: group.bank.event_date,
+          refString1: matchedSalesForBatch.map(getOrderRefForSale).join(","),
+          refString2: group.bank.external_ref || getEventDescription(group.bank),
+        });
+      }
+    }
+
+    if (!matchedSalesForBatch || !saleGroupScore) continue;
+
+    const remittanceToBankScore = computeLinkScore({
+      hasDirectIdLink: false,
+      expectedAmount: remittanceTotal,
+      actualAmount: Number(group.bank.amount),
+      date1: getLatestEventDate(remittances),
+      date2: group.bank.event_date,
+      refString1: remittances.map(getBatchRef).filter(Boolean).join(","),
+      refString2: group.bank.external_ref || getEventDescription(group.bank),
+    });
+    remittanceToBankScore.total = Math.max(remittanceToBankScore.total, group.resolution.confidence);
+
+    for (const matchedSale of matchedSalesForBatch) {
+      if (matchedSale.id) matchedSaleIds.add(matchedSale.id);
+    }
+    for (const remittance of remittances) {
+      if (remittance.id) matchedSettlementIds.add(remittance.id);
+    }
+    matchedBankIds.add(bankId);
+
+    const chainEventIds = [
+      ...matchedSalesForBatch.map((sale) => sale.id || "").filter(Boolean),
+      ...remittances.map((remittance) => remittance.id || "").filter(Boolean),
+      ...deductions.map((deduction) => deduction.id || "").filter(Boolean),
+      bankId,
+    ];
+    const chainConfidence = Math.min(saleGroupScore.total, remittanceToBankScore.total);
+
+    matches.push({
+      order_ref: getRepresentativeOrderRef(matchedSalesForBatch, group.bank.external_ref || bankId),
+      event_ids: Array.from(new Set(chainEventIds)),
+      match_type: "settlement_chain",
+      confidence: chainConfidence,
+      status: chainConfidence >= 85 ? "auto_matched" : "proposed",
+      signals: {
+        sale_group_to_settlement: saleGroupScore,
+        remittance_to_bank: remittanceToBankScore,
+        settlement_to_bank: remittanceToBankScore,
+      },
+      events: {
+        sale: matchedSalesForBatch[0],
+        sales: matchedSalesForBatch,
+        settlement: remittances[0],
+        remittance: remittances[0],
+        remittances,
+        bank: group.bank,
+      },
+    });
+  }
+
   for (const remittance of codRemittances) {
     const remittanceId = remittance.id || "";
     if (remittanceId && matchedSettlementIds.has(remittanceId)) continue;
+    if (remittanceId && protectedCombinedCandidateIds.has(remittanceId)) continue;
 
     const batchRef = getBatchRef(remittance);
     if (!batchRef) continue;
@@ -1057,7 +1334,7 @@ export function matchMissionEvents(events: NormalizedEvent[], options: MatchMiss
 
     const deductions = codDeductionsByBatch.get(batchRef) || [];
     const deductionTotal = sumEventAmounts(deductions);
-    const directOrderRefs = normalizeStringArray(remittance.order_ids || remittance.metadata?.order_ids);
+    const directOrderRefs = getRemittanceOrderRefs(remittance);
 
     let matchedSalesForBatch: NormalizedEvent[] | null = null;
     let saleGroupScore: LinkSignalBreakdown | null = null;

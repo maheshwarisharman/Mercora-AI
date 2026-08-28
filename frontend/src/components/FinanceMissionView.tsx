@@ -453,7 +453,7 @@ export const FinanceMissionView: React.FC = () => {
       }
 
       // 3B. Trigger Normalization
-      addLog(`Normalizing canonical events (linking Shopify orders, Razorpay settlements & Bank transactions)...`);
+      addLog(`Normalizing canonical events (linking Shopify orders, COD remittances, payment-gateway settlements & bank transactions)...`);
       const normRes = await fetchWithAuth(
         `/api/finance/missions/${activeMission.id}/normalize`,
         { method: "POST" }
@@ -496,7 +496,7 @@ export const FinanceMissionView: React.FC = () => {
     };
 
     try {
-      addLog(`Running multi-source reconciliation scoring engine (SALE → PAYMENT → SETTLEMENT → BANK)...`);
+      addLog(`Running multi-source reconciliation scoring engine (online and COD settlement paths)...`);
       const res = await fetchWithAuth(`/api/finance/missions/${activeMission.id}/reconcile`, {
         method: "POST",
       });
@@ -982,7 +982,7 @@ export const FinanceMissionView: React.FC = () => {
               <h2 className="step-heading">Extract & Normalize Canonical Events</h2>
             </div>
             <p className="step-description">
-              Parses raw tabular rows into <code>finance.extracted_records</code> and transforms them into canonical <code>finance.normalized_events</code> (SALES, PAYMENTS, FEES, SETTLEMENTS, BANK_TRANSACTIONS).
+              Parses raw tabular rows into <code>finance.extracted_records</code> and transforms them into canonical <code>finance.normalized_events</code> (SALES, PAYMENTS, FEES, SETTLEMENTS, COD_REMITTANCES, BANK_TRANSACTIONS).
             </p>
 
             <div className="pipeline-action-row">
@@ -1042,7 +1042,7 @@ export const FinanceMissionView: React.FC = () => {
               <h2 className="step-heading">Deterministic Reconciliation & Exception Detection</h2>
             </div>
             <p className="step-description">
-              Traverses the 4-leg financial chain (<code>SALE → PAYMENT → SETTLEMENT → BANK_TRANSACTION</code>). Links are scored using deterministic ID, amount, date window, and fuzzy reference matching.
+              Traverses the available financial paths: <code>SALE → PAYMENT → SETTLEMENT → BANK_TRANSACTION</code> for payment-gateway data and <code>SALE(S) → COD_REMITTANCE → BANK_TRANSACTION</code> for courier data. Links are scored using deterministic ID, amount, date window, and fuzzy reference matching.
             </p>
 
             <div className="pipeline-action-row">
@@ -1286,7 +1286,7 @@ export const FinanceMissionView: React.FC = () => {
                                     {/* Linked Events Subtable */}
                                     <div className="mb-4">
                                       <h5 className="inline-events-title">
-                                        Linked Chain Events ({ex.normalized_event_ids?.length || 0})
+                                        {ex.exception_type === "ambiguous_bank_credit" ? "Candidate Events" : "Linked Chain Events"} ({ex.normalized_event_ids?.length || 0})
                                       </h5>
                                       <div className="w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-xs">
                                         <table className="w-full text-left border-collapse text-xs">

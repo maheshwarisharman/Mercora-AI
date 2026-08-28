@@ -12,10 +12,14 @@ export interface CodColumnConfig {
 }
 
 const DEFAULT_COD_COLUMN_CONFIG: CodColumnConfig = {
-  orderIdKeys: ["order_id", "order_ref", "waybill", "awb", "order_number", "shipment_id"],
+  // Shipmozo exports the Shopify-facing order reference as "ref order id";
+  // prefer it over the courier's internal numeric "order id".
+  orderIdKeys: ["ref_order_id", "order_ref", "order_id", "waybill", "awb", "order_number", "shipment_id"],
   amountKeys: ["cod_amount", "collected_amount", "remittance_amount", "amount", "net_amount", "cr_amount"],
   batchRefKeys: ["batch_ref", "remittance_id", "utr", "payout_id", "settlement_id", "batch_id", "remittance_ref"],
-  dateKeys: ["remittance_date", "date", "delivery_date", "payment_date", "txn_date", "created_at"],
+  // A shipment-level export does not have a payout date. Delivered date is
+  // the correct settlement anchor and is preferable to order date.
+  dateKeys: ["remittance_date", "delivered_date", "delivery_date", "date", "payment_date", "txn_date", "order_date", "created_at"],
   statusKeys: ["status", "delivery_status", "shipment_status", "order_status"],
   courierKeys: ["courier", "courier_name", "partner", "carrier"],
 };
@@ -27,7 +31,7 @@ const DEFAULT_COD_COLUMN_CONFIG: CodColumnConfig = {
  */
 export class GenericCodAdapter implements SourceNormalizerAdapter {
   readonly detectedSource = "generic_cod";
-  readonly requiredFields = ["order_id", "cod_amount"];
+  readonly requiredFields = ["ref_order_id/order_id", "cod_amount"];
   readonly priority = 3;
   protected config: CodColumnConfig;
 
@@ -36,19 +40,26 @@ export class GenericCodAdapter implements SourceNormalizerAdapter {
   }
 
   protected getFirstValue(raw: Record<string, any>, keys: string[]): any {
+    const normalizeKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+
     for (const k of keys) {
       if (raw[k] !== undefined && raw[k] !== null && String(raw[k]).trim() !== "") {
         return raw[k];
       }
       // Also test lowercase / stripped keys
-      const lowerKey = k.toLowerCase().replace(/[^a-z0-9_]/g, "");
+      const lowerKey = normalizeKey(k);
       for (const [rk, rv] of Object.entries(raw)) {
-        if (rk.toLowerCase().replace(/[^a-z0-9_]/g, "") === lowerKey && rv !== undefined && rv !== null && String(rv).trim() !== "") {
+        if (normalizeKey(rk) === lowerKey && rv !== undefined && rv !== null && String(rv).trim() !== "") {
           return rv;
         }
       }
     }
     return undefined;
+  }
+
+  protected parseAmount(value: unknown): number {
+    const parsed = Number(String(value ?? "").replace(/[,₹\s]/g, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   validate(records: ExtractedRecord[]): ValidationResult {
@@ -102,7 +113,7 @@ export class GenericCodAdapter implements SourceNormalizerAdapter {
       const raw = rec.raw_json;
       const orderRef = String(this.getFirstValue(raw, this.config.orderIdKeys) || "").trim();
       const codAmountRaw = this.getFirstValue(raw, this.config.amountKeys);
-      const codAmount = parseFloat(String(codAmountRaw || "0"));
+      const codAmount = this.parseAmount(codAmountRaw);
       const batchRef = String(this.getFirstValue(raw, this.config.batchRefKeys) || "").trim() || null;
       const rawDate = this.getFirstValue(raw, this.config.dateKeys);
       const eventDate = parseDateToIso(rawDate);
@@ -156,7 +167,7 @@ export class GenericCodAdapter implements SourceNormalizerAdapter {
       // 3. Emit COD_COLLECTION event if reported separately
       const collectedAmountRaw = raw.doorstep_collected_amount || raw.collected_cash || raw.cod_collected;
       if (collectedAmountRaw !== undefined && collectedAmountRaw !== null && collectedAmountRaw !== "") {
-        const collectedAmt = parseFloat(String(collectedAmountRaw || "0"));
+        const collectedAmt = this.parseAmount(collectedAmountRaw);
         if (!isNaN(collectedAmt) && collectedAmt > 0) {
           events.push({
             mission_id: missionId,
@@ -218,7 +229,7 @@ export class GenericCodAdapter implements SourceNormalizerAdapter {
       for (const mapping of deductionMappings) {
         const val = this.getFirstValue(raw, mapping.keys);
         if (val !== undefined && val !== null && String(val).trim() !== "") {
-          const parsedDeduction = parseFloat(String(val));
+          const parsedDeduction = this.parseAmount(val);
           if (!isNaN(parsedDeduction) && parsedDeduction > 0) {
             events.push({
               mission_id: missionId,
