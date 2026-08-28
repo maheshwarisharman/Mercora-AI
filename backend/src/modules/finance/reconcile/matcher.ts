@@ -478,7 +478,12 @@ export function resolveBankCreditDeterministically(params: {
   config?: BankCreditDisambiguationConfig;
 }): BankCreditResolution {
   const config = params.config || {};
-  const ranked = rankBankCreditCandidates(params.bankCredit, params.candidates, config);
+  // Rows with a zero score are only present because they were supplied as
+  // possible candidates. They are not evidence and must not turn an
+  // unrelated bank credit into an ambiguous assignment or suppress a real
+  // missing-bank-credit exception.
+  const ranked = rankBankCreditCandidates(params.bankCredit, params.candidates, config)
+    .filter((candidate) => candidate.score > 0);
   const top = ranked[0];
   const second = ranked[1];
   const minimumConfidence = config.minimumConfidence ?? 70;

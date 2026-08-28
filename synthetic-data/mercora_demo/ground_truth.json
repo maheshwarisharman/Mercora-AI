@@ -1,0 +1,242 @@
+[
+  {
+    "order_id": "#MRC-24001",
+    "payment_id": "pay_mrc_001",
+    "channel": "PG",
+    "gross_amount": 1299,
+    "fee_amount": 25.98,
+    "tax_on_fee": 4.68,
+    "expected_net": 1268.34,
+    "anomaly": null,
+    "note": "Clean online settlement chain."
+  },
+  {
+    "order_id": "#MRC-24002",
+    "payment_id": "pay_mrc_002",
+    "channel": "PG",
+    "gross_amount": 2499,
+    "fee_amount": 49.98,
+    "tax_on_fee": 9,
+    "expected_net": 2440.02,
+    "anomaly": null,
+    "note": "Clean online settlement chain."
+  },
+  {
+    "order_id": "#MRC-24003",
+    "payment_id": "pay_mrc_003",
+    "channel": "PG",
+    "gross_amount": 1799,
+    "fee_amount": 35.98,
+    "tax_on_fee": 6.48,
+    "expected_net": 1756.54,
+    "anomaly": null,
+    "note": "Clean online settlement chain."
+  },
+  {
+    "order_id": "#MRC-24004",
+    "payment_id": "pay_mrc_004",
+    "channel": "PG",
+    "gross_amount": 3299,
+    "fee_amount": 65.98,
+    "tax_on_fee": 11.88,
+    "expected_net": 3221.14,
+    "anomaly": null,
+    "note": "Clean online settlement chain."
+  },
+  {
+    "order_id": "#MRC-24005",
+    "payment_id": "pay_mrc_005",
+    "channel": "PG",
+    "gross_amount": 2199,
+    "fee_amount": 43.98,
+    "tax_on_fee": 7.92,
+    "expected_net": 2147.1,
+    "anomaly": "timing_difference",
+    "note": "Bank credit is 8 days after settlement; expected timing window is 1-5 days."
+  },
+  {
+    "order_id": "#MRC-24006",
+    "payment_id": "pay_mrc_006",
+    "channel": "PG",
+    "gross_amount": 1499,
+    "fee_amount": 29.98,
+    "tax_on_fee": 5.4,
+    "expected_net": 1463.62,
+    "anomaly": null,
+    "note": "Clean online settlement chain."
+  },
+  {
+    "order_id": "#MRC-24007",
+    "payment_id": "pay_mrc_007",
+    "channel": "PG",
+    "gross_amount": 2799,
+    "fee_amount": 55.98,
+    "tax_on_fee": 10.08,
+    "expected_net": 2732.94,
+    "anomaly": "duplicate_payment_export",
+    "note": "The same payment row is intentionally exported twice."
+  },
+  {
+    "order_id": "#MRC-24008",
+    "payment_id": "pay_mrc_008",
+    "channel": "PG",
+    "gross_amount": 3899,
+    "fee_amount": 77.98,
+    "tax_on_fee": 14.04,
+    "expected_net": 3806.98,
+    "anomaly": null,
+    "note": "Clean online settlement chain."
+  },
+  {
+    "order_id": "#MRC-24009",
+    "payment_id": "pay_mrc_009",
+    "channel": "PG",
+    "gross_amount": 999,
+    "fee_amount": 19.98,
+    "tax_on_fee": 3.6,
+    "expected_net": 975.42,
+    "anomaly": "missing_settlement",
+    "note": "Payment exists but settlement leg is intentionally blank."
+  },
+  {
+    "order_id": "#MRC-24010",
+    "payment_id": "pay_mrc_010",
+    "channel": "PG",
+    "gross_amount": 4599,
+    "fee_amount": 91.98,
+    "tax_on_fee": 16.56,
+    "expected_net": 4490.46,
+    "anomaly": null,
+    "note": "Clean online settlement chain."
+  },
+  {
+    "order_id": "#MRC-24011",
+    "payment_id": "pay_mrc_011",
+    "channel": "PG",
+    "gross_amount": 1899,
+    "fee_amount": 37.98,
+    "tax_on_fee": 6.84,
+    "expected_net": 1854.18,
+    "anomaly": null,
+    "note": "Clean online settlement chain."
+  },
+  {
+    "order_id": "#MRC-24012",
+    "payment_id": "pay_mrc_012",
+    "channel": "PG",
+    "gross_amount": 2699,
+    "fee_amount": 53.98,
+    "tax_on_fee": 9.72,
+    "expected_net": 2635.3,
+    "anomaly": null,
+    "note": "Clean online settlement chain."
+  },
+  {
+    "order_id": "#MRC-24013",
+    "payment_id": "pay_mrc_013",
+    "channel": "PG",
+    "gross_amount": 1599,
+    "fee_amount": 31.98,
+    "tax_on_fee": 5.76,
+    "expected_net": 1561.26,
+    "anomaly": "missing_bank_credit",
+    "note": "Settlement exists but no matching bank credit is intentionally present."
+  },
+  {
+    "order_id": "#MRC-24014",
+    "payment_id": "pay_mrc_014",
+    "channel": "PG",
+    "gross_amount": 4999,
+    "fee_amount": 99.98,
+    "tax_on_fee": 18,
+    "expected_net": 4881.02,
+    "anomaly": null,
+    "note": "Clean online settlement chain."
+  },
+  {
+    "order_id": "#MRC-24015",
+    "payment_id": "pay_mrc_015",
+    "channel": "PG",
+    "gross_amount": 2299,
+    "fee_amount": 45.98,
+    "tax_on_fee": 8.28,
+    "expected_net": 2244.74,
+    "anomaly": "unexplained_difference",
+    "note": "Bank credit is ₹10 below the settlement net amount."
+  },
+  {
+    "order_id": "#MRC-24016",
+    "payment_id": "pay_mrc_016",
+    "channel": "PG",
+    "gross_amount": 1199,
+    "fee_amount": 23.98,
+    "tax_on_fee": 4.32,
+    "expected_net": 1170.7,
+    "anomaly": null,
+    "note": "Clean online settlement chain."
+  },
+  {
+    "order_id": "#MRC-24017",
+    "channel": "COD",
+    "cod_amount": 2999,
+    "batch_ref": "COD-BATCH-MRC-0823",
+    "anomaly": null,
+    "note": "Clean COD remittance row; eight rows aggregate into one courier bank credit."
+  },
+  {
+    "order_id": "#MRC-24018",
+    "channel": "COD",
+    "cod_amount": 3499,
+    "batch_ref": "COD-BATCH-MRC-0823",
+    "anomaly": null,
+    "note": "Clean COD remittance row; eight rows aggregate into one courier bank credit."
+  },
+  {
+    "order_id": "#MRC-24019",
+    "channel": "COD",
+    "cod_amount": 1399,
+    "batch_ref": "COD-BATCH-MRC-0823",
+    "anomaly": null,
+    "note": "Clean COD remittance row; eight rows aggregate into one courier bank credit."
+  },
+  {
+    "order_id": "#MRC-24020",
+    "channel": "COD",
+    "cod_amount": 4199,
+    "batch_ref": "COD-BATCH-MRC-0823",
+    "anomaly": null,
+    "note": "Clean COD remittance row; eight rows aggregate into one courier bank credit."
+  },
+  {
+    "order_id": "#MRC-24021",
+    "channel": "COD",
+    "cod_amount": 1699,
+    "batch_ref": "COD-BATCH-MRC-0823",
+    "anomaly": null,
+    "note": "Clean COD remittance row; eight rows aggregate into one courier bank credit."
+  },
+  {
+    "order_id": "#MRC-24022",
+    "channel": "COD",
+    "cod_amount": 2399,
+    "batch_ref": "COD-BATCH-MRC-0823",
+    "anomaly": null,
+    "note": "Clean COD remittance row; eight rows aggregate into one courier bank credit."
+  },
+  {
+    "order_id": "#MRC-24023",
+    "channel": "COD",
+    "cod_amount": 3199,
+    "batch_ref": "COD-BATCH-MRC-0823",
+    "anomaly": null,
+    "note": "Clean COD remittance row; eight rows aggregate into one courier bank credit."
+  },
+  {
+    "order_id": "#MRC-24024",
+    "channel": "COD",
+    "cod_amount": 1299,
+    "batch_ref": "COD-BATCH-MRC-0823",
+    "anomaly": null,
+    "note": "Clean COD remittance row; eight rows aggregate into one courier bank credit."
+  }
+]

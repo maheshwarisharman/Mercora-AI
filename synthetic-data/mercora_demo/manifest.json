@@ -1,0 +1,42 @@
+{
+  "name": "Mercora reconciliation demo",
+  "generated_at": "2026-08-28T00:00:00Z",
+  "upload_order": [
+    "orders.csv",
+    "pg_gateway_settlements.csv",
+    "cod_remittances.csv",
+    "bank_transactions.csv"
+  ],
+  "counts": {
+    "orders": 24,
+    "pg_rows": 17,
+    "cod_rows": 8,
+    "bank_rows": 18,
+    "bank_credits": 16
+  },
+  "totals": {
+    "order_value": 60276,
+    "cod_remittance": 20692,
+    "pg_gross": 39584
+  },
+  "expected_demo_result": {
+    "clean_pg_chains": 14,
+    "clean_cod_aggregate_chains": 1,
+    "intentional_open_exceptions": [
+      "duplicate",
+      "timing_difference",
+      "missing_settlement",
+      "missing_bank_credit",
+      "unexplained_difference",
+      "ambiguous_bank_credit"
+    ]
+  },
+  "anomaly_legend": {
+    "duplicate_payment_export": "PG row 7 is duplicated exactly.",
+    "timing_difference": "PG order MRC-24005 has a bank credit eight days after settlement.",
+    "missing_settlement": "PG order MRC-24009 has a captured payment but no settlement_id/net_amount.",
+    "missing_bank_credit": "PG order MRC-24013 has a settlement but no bank credit.",
+    "unexplained_difference": "PG order MRC-24015 bank credit is ₹10 below expected net.",
+    "unmatched_bank_credit": "₹750 bank credit has no source settlement and should remain an exception."
+  }
+}

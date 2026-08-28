@@ -27,6 +27,15 @@ export function classifyDocumentHeuristic(
   if (lowerName.includes("shopify") || lowerName.includes("order")) {
     filenameCandidate = "shopify_orders";
   } else if (
+    lowerName.includes("cod") ||
+    lowerName.includes("remittance") ||
+    lowerName.includes("delhivery") ||
+    lowerName.includes("shiprocket") ||
+    lowerName.includes("shipmozo") ||
+    lowerName.includes("ecom")
+  ) {
+    filenameCandidate = "generic_cod";
+  } else if (
     lowerName.includes("razorpay") ||
     lowerName.includes("settlement") ||
     lowerName.includes("payment")
@@ -53,6 +62,12 @@ export function classifyDocumentHeuristic(
       looksLikeShopifyOrderHeaders(headers || [])
     ) {
       headerCandidate = "shopify_orders";
+    } else if (
+      hasHeader("codamount") &&
+      (hasHeader("reforderid") || hasHeader("orderid") || hasHeader("awb")) &&
+      (hasHeader("delivereddate") || hasHeader("deliverydate") || hasHeader("batchref") || hasHeader("courier"))
+    ) {
+      headerCandidate = "generic_cod";
     } else if (hasHeader("paymentid") && hasHeader("settlementid")) {
       headerCandidate = "razorpay_settlement";
     } else if (
