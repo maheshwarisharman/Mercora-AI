@@ -7,6 +7,7 @@ import { normalizeRouter } from "../modules/finance/normalize/routes";
 import { reconcileRouter } from "../modules/finance/reconcile/routes";
 import { exceptionsRouter } from "../modules/finance/exceptions/routes";
 import { qaRouter } from "../modules/finance/qa/routes";
+import { summaryRouter } from "../modules/finance/summary/routes";
 
 export const financeRouter = Router();
 
@@ -21,3 +22,4 @@ financeRouter.use(normalizeRouter);
 financeRouter.use(reconcileRouter);
 financeRouter.use(exceptionsRouter);
 financeRouter.use(qaRouter);
+financeRouter.use(summaryRouter);

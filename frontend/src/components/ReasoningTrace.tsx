@@ -52,10 +52,10 @@ function summariseArgs(toolName: string, args: Record<string, unknown>): string 
 /** Friendly label for tool name */
 function toolLabel(toolName: string): string {
   const labels: Record<string, string> = {
-    get_exception_details: "Fetch Exception Details",
-    get_amazon_deduction_context: "Inspect Amazon Deduction Context",
+    get_exception_details: "Reviewed the exception",
+    get_amazon_deduction_context: "Checked Amazon's fee breakdown",
     get_transaction_chain: "Trace Transaction Chain",
-    search_evidence: "Search Evidence",
+    search_evidence: "Searched for supporting records",
     get_mission_summary: "Mission Summary",
     list_open_exceptions: "List Open Exceptions",
     request_human_review: "Escalate for Human Review",

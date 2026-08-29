@@ -83,11 +83,11 @@ function sanitizeToolParameterSchema(schema: any): any {
 
 export class GeminiProvider implements LLMProvider {
   public readonly name = "gemini";
-  private readonly purpose: "investigate" | "judge";
+  private readonly purpose: "investigate" | "judge" | "summary";
   private readonly apiKey: string;
   private readonly model: string;
 
-  constructor(purpose: "investigate" | "judge") {
+  constructor(purpose: "investigate" | "judge" | "summary") {
     this.purpose = purpose;
     this.apiKey = process.env.GEMINI_API_KEY || "";
 
@@ -402,6 +402,28 @@ export class GeminiProvider implements LLMProvider {
           "Support Ticket TICK-8842 and Refund Record RF-5502 corroborate a ₹500 manual goodwill concession for package damage on Order #SHF-1038, deducted from merchant settlement.";
       }
       return { selected_evidence_refs, reasoning } as T;
+    }
+
+    if (this.purpose === "summary") {
+      return {
+        healthVerdict: "needs_review",
+        headline: "Your reconciliation is complete and the remaining work is concentrated in the open exceptions.",
+        insights: [
+          {
+            text: "Review the outstanding items before closing this mission.",
+            metricRef: "exceptions.byStatus.open",
+            severity: "warning",
+          },
+          {
+            text: "The matched portion of sales has a clear bank trail.",
+            metricRef: "matchHealth.overallMatchRatePct",
+            severity: "info",
+          },
+        ],
+        recommendedActions: [
+          { text: "Start with the highest value open exceptions and confirm their supporting records." },
+        ],
+      } as T;
     }
 
     // Judge purpose

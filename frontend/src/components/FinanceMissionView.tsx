@@ -23,6 +23,7 @@ import {
   User,
 } from "lucide-react";
 import { ReasoningTrace, type AgentTraceStep } from "./ReasoningTrace";
+import { MissionSummary } from "../pages/MissionSummary";
 
 interface FinanceMission {
   id: string;
@@ -31,7 +32,7 @@ interface FinanceMission {
   period_end: string;
   sources: string[] | string;
   objective?: string | null;
-  status: "created" | "ingesting" | "reconciling" | "needs_review" | "closed";
+  status: "created" | "ingesting" | "reconciling" | "needs_review" | "completed" | "closed";
   created_at: string;
 }
 
@@ -126,6 +127,78 @@ interface QAMessage {
   isLoading?: boolean;
 }
 
+const FRIENDLY_LABELS: Record<string, string> = {
+  MISSING_BANK_CREDIT: "Bank payment not received yet",
+  UNEXPLAINED_DIFFERENCE: "Amount doesn't match",
+  AMAZON_UNKNOWN_DEDUCTION: "Unrecognized Amazon fee",
+  AMAZON_RETURN_CLAWBACK: "Amazon deducted for a return",
+  REQUIRES_HUMAN_REVIEW: "Needs Your Review",
+  EXPLAINED: "Resolved",
+};
+
+function friendlyLabel(value: string): string {
+  return FRIENDLY_LABELS[value.toUpperCase()] || value.replace(/_/g, " ");
+}
+
+function chainLegLabel(eventType: string): string {
+  const labels: Record<string, string> = {
+    SALE: "Sale",
+    PAYMENT: "Payment",
+    SETTLEMENT: "Settlement",
+    BANK_TRANSACTION: "Bank Credit",
+    FEE: "Fee",
+  };
+  return labels[eventType] || eventType.replace(/_/g, " ");
+}
+
+function evidenceSummary(ev: EvidenceItem): string {
+  const rawContent = ev.content.trim();
+  const amazonPrefix = "Verified Amazon settlement context:";
+  const isAmazonContext = rawContent.startsWith(amazonPrefix);
+  const jsonText = isAmazonContext ? rawContent.slice(amazonPrefix.length).trim() : rawContent;
+
+  let parsed: Record<string, any> | null = null;
+  try {
+    const candidate = JSON.parse(jsonText);
+    if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+      parsed = candidate;
+    }
+  } catch {
+    // Evidence from non-Amazon sources is already plain text.
+  }
+
+  if (!parsed) {
+    return isAmazonContext ? "Amazon settlement evidence available" : rawContent;
+  }
+
+  if (!isAmazonContext && ev.source_type !== "amazon_settlement") {
+    return "Verified supporting record available";
+  }
+
+  const metadata = parsed.metadata && typeof parsed.metadata === "object" ? parsed.metadata : {};
+  const externalRef = String(parsed.external_ref || "");
+  const settlementId = String(
+    metadata.amazon_settlement_id ||
+      parsed.batch_ref ||
+      externalRef.split(":line-")[0] ||
+      ""
+  );
+  const lineNumber = metadata.line_number || externalRef.match(/:line-(\d+)$/)?.[1];
+  const orderRef = metadata.order_ref || parsed.order_ref || "";
+  const amount = Number(parsed.amount);
+  const amountText = Number.isFinite(amount)
+    ? `₹${amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+    : "";
+  const category = String(metadata.deduction_label || "settlement adjustment");
+  const details = [amountText, category, orderRef ? `order ${orderRef}` : ""]
+    .filter(Boolean)
+    .join(" ");
+
+  return `${settlementId ? `Amazon settlement ${settlementId}` : "Amazon settlement"}${
+    lineNumber ? `, line ${lineNumber}` : ""
+  }${details ? ` — ${details}` : ""}`;
+}
+
 interface MissionException {
   id: string;
   mission_id: string;
@@ -164,6 +237,7 @@ export const FinanceMissionView: React.FC = () => {
 
   // Active Mission State
   const [activeMission, setActiveMission] = useState<FinanceMission | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
   const [documents, setDocuments] = useState<SourceDoc[]>([]);
   const [events, setEvents] = useState<NormalizedEvent[]>([]);
   const [matches, setMatches] = useState<ReconciledMatch[]>([]);
@@ -239,6 +313,11 @@ export const FinanceMissionView: React.FC = () => {
   useEffect(() => {
     fetchMissions();
   }, []);
+
+  const openMission = (mission: FinanceMission) => {
+    setActiveMission(mission);
+    setShowSummary(mission.status === "needs_review" || mission.status === "completed" || mission.status === "closed");
+  };
 
   // Helper to parse sources
   const parseSources = (sources: string[] | string | undefined | null): string[] => {
@@ -323,6 +402,7 @@ export const FinanceMissionView: React.FC = () => {
       }
 
       setActiveMission(data.data);
+      setShowSummary(false);
       setShowCreateModal(false);
       setDocuments([]);
       setEvents([]);
@@ -520,6 +600,7 @@ export const FinanceMissionView: React.FC = () => {
       }
 
       setActiveMission((prev) => (prev ? { ...prev, status: "needs_review" } : null));
+      setShowSummary(true);
       await loadMissionData(activeMission.id);
       addLog(`🎉 Mission status updated to 'needs_review'. Ready for exception investigation.`);
     } catch (err: any) {
@@ -662,6 +743,19 @@ export const FinanceMissionView: React.FC = () => {
     return true;
   });
 
+  if (activeMission && showSummary) {
+    return (
+      <MissionSummary
+        mission={activeMission}
+        onBack={() => setShowSummary(false)}
+        onOpenException={(exceptionId) => {
+          setShowSummary(false);
+          window.setTimeout(() => scrollToException(exceptionId), 0);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="w-full space-y-6">
       {/* SaaS Dashboard Header */}
@@ -686,13 +780,24 @@ export const FinanceMissionView: React.FC = () => {
 
         <div className="flex items-center gap-3 shrink-0">
           {activeMission ? (
-            <button
-              onClick={() => setActiveMission(null)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 shadow-2xs cursor-pointer"
-            >
-              <ArrowLeft size={16} />
-              <span>All Missions Table</span>
-            </button>
+            <>
+              {(activeMission.status === "needs_review" || activeMission.status === "completed" || activeMission.status === "closed") && (
+                <button
+                  onClick={() => setShowSummary(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors border border-slate-300 shadow-2xs cursor-pointer"
+                >
+                  <ShieldAlert size={16} />
+                  <span>View summary</span>
+                </button>
+              )}
+              <button
+                onClick={() => { setActiveMission(null); setShowSummary(false); }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 shadow-2xs cursor-pointer"
+              >
+                <ArrowLeft size={16} />
+                <span>All Missions Table</span>
+              </button>
+            </>
           ) : null}
 
           <button
@@ -791,7 +896,7 @@ export const FinanceMissionView: React.FC = () => {
                     return (
                       <tr
                         key={m.id}
-                        onClick={() => setActiveMission(m)}
+                        onClick={() => openMission(m)}
                         className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
                       >
                         {/* Mission ID & Goal */}
@@ -839,7 +944,7 @@ export const FinanceMissionView: React.FC = () => {
                         <td className="py-4.5 px-6 whitespace-nowrap">
                           <span
                             className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border capitalize ${
-                              m.status === "closed"
+                              m.status === "closed" || m.status === "completed"
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                 : m.status === "needs_review"
                                 ? "bg-amber-50 text-amber-700 border-amber-200"
@@ -852,7 +957,7 @@ export const FinanceMissionView: React.FC = () => {
                           >
                             <span
                               className={`w-2 h-2 rounded-full ${
-                                m.status === "closed"
+                                m.status === "closed" || m.status === "completed"
                                   ? "bg-emerald-500"
                                   : m.status === "needs_review"
                                   ? "bg-amber-500 animate-pulse"
@@ -881,7 +986,7 @@ export const FinanceMissionView: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setActiveMission(m);
+                              openMission(m);
                             }}
                             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 group-hover:border-indigo-300 transition-all shadow-2xs cursor-pointer"
                           >
@@ -1007,17 +1112,17 @@ export const FinanceMissionView: React.FC = () => {
                 {processingPipeline ? (
                   <>
                     <div className="spinner-sm" />
-                    <span>Executing Pipeline Stages...</span>
+                    <span>Processing Files...</span>
                   </>
                 ) : (
                   <>
                     <RefreshCw size={18} />
-                    <span>Extract & Normalize All Documents</span>
+                    <span>Process Uploaded Files</span>
                   </>
                 )}
               </button>
               <span className="btn-helper-text">
-                {documents.length} document(s) ready • {events.length} canonical events normalized
+                {documents.length} files processed • {events.length} transactions found
               </span>
             </div>
 
@@ -1067,12 +1172,12 @@ export const FinanceMissionView: React.FC = () => {
                 {reconciling ? (
                   <>
                     <div className="spinner-sm" />
-                    <span>Reconciling Financial Chains...</span>
+                    <span>Matching Transactions...</span>
                   </>
                 ) : (
                   <>
                     <Layers size={18} />
-                    <span>Run Reconciliation Engine</span>
+                    <span>Match Transactions</span>
                   </>
                 )}
               </button>
@@ -1111,7 +1216,7 @@ export const FinanceMissionView: React.FC = () => {
               <section className="amazon-reconciliation-panel" aria-labelledby="amazon-reconciliation-heading">
                 <div className="amazon-panel-heading">
                   <div>
-                    <div className="amazon-kicker">Amazon settlement intelligence</div>
+                    <div className="amazon-kicker">Amazon Fee Breakdown</div>
                     <h3 id="amazon-reconciliation-heading">Every deduction line, accounted for</h3>
                     <p>Known fees are classified deterministically. New codes and return clawbacks are queued for agent investigation.</p>
                   </div>
@@ -1119,8 +1224,8 @@ export const FinanceMissionView: React.FC = () => {
                 </div>
                 <div className="amazon-summary-grid">
                   <div><strong>{amazonStatutoryCount}</strong><span>statutory withholdings excluded from anomalies</span></div>
-                  <div><strong>{amazonAgentCount}</strong><span>lines needing contextual agent review</span></div>
-                  <div><strong>{Object.keys(amazonCategoryCounts).length}</strong><span>merchant-facing categories detected</span></div>
+                  <div><strong>{amazonAgentCount}</strong><span>need a closer look</span></div>
+                  <div><strong>{Object.keys(amazonCategoryCounts).length}</strong><span>fee types found</span></div>
                 </div>
                 <div className="amazon-line-table-wrap">
                   <table className="amazon-line-table">
@@ -1129,10 +1234,15 @@ export const FinanceMissionView: React.FC = () => {
                       {amazonLineEvents.map((event) => {
                         const linkedException = exceptions.find((exception) => exception.normalized_event_ids.includes(event.id));
                         const requiresAgent = event.metadata?.classification_method === "agent_required";
+                        const feeCode = event.metadata?.amount_description || event.metadata?.amount_type || "Adjustment";
+                        const feeCategory = event.metadata?.deduction_label || event.deduction_type || "Unclassified";
                         return (
                           <tr key={event.id}>
-                            <td><code>{event.metadata?.amount_description || event.metadata?.amount_type || "Adjustment"}</code></td>
-                            <td>{event.metadata?.deduction_label || event.deduction_type || "Unclassified"}</td>
+                            <td>
+                              <strong>{feeCategory}</strong>
+                              <small className="block text-slate-500">{feeCode}</small>
+                            </td>
+                            <td>{feeCategory}</td>
                             <td>{event.metadata?.order_ref || "Settlement-level"}</td>
                             <td className="amazon-amount">₹{Number(event.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
                             <td>
@@ -1194,7 +1304,7 @@ export const FinanceMissionView: React.FC = () => {
                               <code className="ref-code">{orderRef}</code>
                             </td>
                             <td className="px-4 py-3">
-                              <span className="match-type-tag">{m.match_type.match("exact_id") ? "Exact" : "Fuzzy"}</span>
+                              <span className="match-type-tag">{m.match_type.match("exact_id") ? "Exact" : "Best-effort match"}</span>
                             </td>
                             <td className="px-4 py-3 font-semibold text-slate-700">
                               <span>
@@ -1210,7 +1320,7 @@ export const FinanceMissionView: React.FC = () => {
                               <div className="flex gap-1">
                                 {linkedEvts.map((e) => (
                                   <span key={e.id} className={`event-badge ${e.event_type}`}>
-                                    {e.event_type.slice(0, 4)}
+                                    {chainLegLabel(e.event_type)}
                                   </span>
                                 ))}
                               </div>
@@ -1224,7 +1334,7 @@ export const FinanceMissionView: React.FC = () => {
                                 }
                                 className="btn-text-sm"
                               >
-                                {selectedSignalsMatch?.id === m.id ? "Hide Signals" : "View Signals"}
+                                {selectedSignalsMatch?.id === m.id ? "Hide Match Details" : "View Match Details"}
                               </button>
                               {selectedSignalsMatch?.id === m.id && (
                                 <div className="mt-2 p-2 bg-slate-100 rounded text-xs font-mono">
@@ -1283,7 +1393,7 @@ export const FinanceMissionView: React.FC = () => {
                             >
                               <td className="px-4 py-3">
                                 <span className={`exception-badge ${ex.exception_type}`}>
-                                  {ex.exception_type.replace(/_/g, " ")}
+                                  {friendlyLabel(ex.exception_type)}
                                 </span>
                               </td>
                               <td className="px-4 py-3 font-semibold text-slate-900 font-mono">
@@ -1297,7 +1407,7 @@ export const FinanceMissionView: React.FC = () => {
                               </td>
                               <td className="px-4 py-3">
                                 <span className={`status-badge-sm ${ex.status}`}>
-                                  {ex.status.replace(/_/g, " ")}
+                                  {friendlyLabel(ex.status)}
                                 </span>
                               </td>
                               <td className="px-4 py-3">
@@ -1325,7 +1435,7 @@ export const FinanceMissionView: React.FC = () => {
                                     className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
                                   >
                                     <span>{isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
-                                    <span>{isExpanded ? "Hide Details" : "Inspect Events"}</span>
+                                    <span>{isExpanded ? "Hide Details" : "View Order Details"}</span>
                                   </button>
                                 </div>
                               </td>
@@ -1413,7 +1523,7 @@ export const FinanceMissionView: React.FC = () => {
                                         <div className="judgment-header">
                                           <div className="judgment-title-row">
                                             <span className={"font-bold"}>
-                                              {latestJudgment.classification.replace(/_/g, " ")}
+                                              {friendlyLabel(latestJudgment.classification)}
                                             </span>
                                             <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
                                               {latestJudgment.confidence}% confidence
@@ -1442,7 +1552,7 @@ export const FinanceMissionView: React.FC = () => {
                                                       </span>
                                                       <span className="evidence-ref-tag">{ev.source_ref}</span>
                                                     </div>
-                                                    <div className="evidence-snippet">"{ev.content}"</div>
+                                                    <div className="evidence-snippet">{evidenceSummary(ev)}</div>
                                                   </div>
                                                 ))}
                                               </div>

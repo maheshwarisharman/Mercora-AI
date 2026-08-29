@@ -9,7 +9,7 @@ export * from "./types";
  * setting LLM_PROVIDER to an unimplemented value must fail loudly at the factory,
  * not silently degrade elsewhere.
  */
-export function getLLMProvider(purpose: "investigate" | "judge"): LLMProvider {
+export function getLLMProvider(purpose: "investigate" | "judge" | "summary"): LLMProvider {
   const providerName = process.env.LLM_PROVIDER ?? "gemini";
   if (providerName === "gemini") {
     return new GeminiProvider(purpose);
