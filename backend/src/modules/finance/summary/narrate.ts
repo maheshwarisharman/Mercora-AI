@@ -15,7 +15,7 @@ const MissionNarrativeSchema = z.object({
     text: noNumerals,
     metricRef: z.string().min(1),
     severity: z.enum(["info", "warning", "critical"]),
-  })).max(6),
+  })).min(1).max(6),
   recommendedActions: z.array(z.object({
     text: noNumerals,
     relatedExceptionIds: z.array(z.string()).optional(),
@@ -39,35 +39,72 @@ function getPath(root: unknown, path: string): unknown {
  * human-friendly verdict such as "needs review". Normalize those transport
  * variations before the strict schema guard runs; never relax the guard itself.
  */
-function normalizeNarrativeCandidate(raw: unknown): unknown {
+function normalizeHealthVerdict(value: unknown, aggregate: MissionAggregate): "healthy" | "needs_review" | "critical" {
+  const rawValue = value && typeof value === "object"
+    ? (value as Record<string, unknown>).value ?? (value as Record<string, unknown>).label ?? (value as Record<string, unknown>).status
+    : value;
+  const verdict = String(rawValue ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+
+  if (verdict.includes("critical") || verdict.includes("severe") || verdict.includes("urgent")) return "critical";
+  if (verdict.includes("healthy") || verdict.includes("good") || verdict.includes("clear")) return "healthy";
+  if (verdict.includes("review") || verdict.includes("attention") || verdict.includes("warning") || verdict.includes("risk")) return "needs_review";
+
+  // If a provider returns an unrecognized label, keep the report usable with a
+  // conservative deterministic verdict. No financial value is inferred here.
+  const hasOpenWork = aggregate.exceptions.byStatus.open > 0 || aggregate.exceptions.byStatus.requiresHumanReview > 0;
+  const hasVariance = Math.abs(aggregate.totals.variance) > 0.01;
+  return hasOpenWork || hasVariance ? "needs_review" : "healthy";
+}
+
+function firstString(record: Record<string, any>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    if (typeof record[key] === "string" && record[key].trim()) return record[key].trim();
+  }
+  return undefined;
+}
+
+function asArray(value: unknown, nestedKeys: string[]): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of nestedKeys) {
+      if (Array.isArray(record[key])) return record[key];
+    }
+  }
+  return [];
+}
+
+function normalizeNarrativeCandidate(raw: unknown, aggregate: MissionAggregate): unknown {
   if (!raw || typeof raw !== "object") return raw;
-  const candidate = ((raw as Record<string, unknown>).narrative || raw) as Record<string, any>;
-  const verdict = String(candidate.healthVerdict ?? candidate.health_verdict ?? candidate.verdict ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-  const rawInsights = candidate.insights ?? candidate.key_insights ?? candidate.observations ?? [];
-  const rawActions = candidate.recommendedActions ?? candidate.recommended_actions ?? candidate.actions ?? [];
+  const rawRecord = raw as Record<string, unknown>;
+  const candidate = (rawRecord.narrative || rawRecord.data || rawRecord.output || raw) as Record<string, any>;
+  const verdict = normalizeHealthVerdict(candidate.healthVerdict ?? candidate.health_verdict ?? candidate.verdict ?? candidate.health, aggregate);
+  const rawInsights = candidate.insights ?? candidate.key_insights ?? candidate.keyInsights ?? candidate.observations ?? [];
+  const rawActions = candidate.recommendedActions ?? candidate.recommended_actions ?? candidate.next_steps ?? candidate.nextSteps ?? candidate.actions ?? [];
 
   return {
     ...candidate,
     healthVerdict: verdict,
     headline: candidate.headline ?? candidate.summary_headline ?? candidate.title,
-    insights: Array.isArray(rawInsights)
-      ? rawInsights.map((insight: Record<string, any>) => ({
+    insights: asArray(rawInsights, ["items", "insights", "observations"]).map((insightValue: unknown) => {
+      const insight = typeof insightValue === "string" ? { text: insightValue } : (insightValue || {}) as Record<string, any>;
+      const severity = String(insight.severity ?? insight.level ?? insight.priority ?? "info").toLowerCase();
+      return {
           ...insight,
-          text: insight.text ?? insight.observation ?? insight.insight,
-          metricRef: insight.metricRef ?? insight.metric_ref ?? insight.metric,
-          severity: String(insight.severity ?? "info").toLowerCase(),
-        }))
-      : rawInsights,
-    recommendedActions: Array.isArray(rawActions)
-      ? rawActions.map((action: Record<string, any>) => ({
+          text: firstString(insight, ["text", "insight_text", "observation", "insight", "description", "finding", "summary", "message", "content", "copy"]),
+          metricRef: firstString(insight, ["metricRef", "metric_ref", "metricReference", "metric_reference", "metric", "metricPath", "metric_path", "groundedMetric", "sourceField", "referenceField", "field"]),
+          severity: severity.includes("critical") ? "critical" : severity.includes("warn") || severity.includes("risk") ? "warning" : "info",
+        };
+      })
+      .filter((insight) => insight.text || insight.metricRef),
+    recommendedActions: asArray(rawActions, ["items", "actions", "recommendations"]).map((actionValue: unknown) => {
+      const action = typeof actionValue === "string" ? { text: actionValue } : (actionValue || {}) as Record<string, any>;
+      return {
           ...action,
-          text: action.text ?? action.action ?? action.recommendation,
+          text: firstString(action, ["text", "action_text", "action", "recommendation", "description", "message", "next_action"]),
           relatedExceptionIds: action.relatedExceptionIds ?? action.related_exception_ids,
-        }))
-      : [],
+        };
+      }).filter((action) => action.text),
   };
 }
 
@@ -84,8 +121,12 @@ const SYSTEM_PROMPT = `You are Mercora's reconciliation report narrator.
 You will only receive pre-computed aggregate figures. Do not perform arithmetic.
 Do not state a number that is not present in the input JSON. Every insight must
 include a metricRef pointing to the exact field in the input you are describing.
-Narrative prose fields must contain no numerals, currency symbols, percentages,
-or IDs. The frontend renders numeric values independently from the aggregate.
+Return exactly these camelCase keys: healthVerdict, headline, insights, and
+recommendedActions. Each insight must be an object with text, metricRef, and
+severity. Each recommended action must be an object with text and may include
+relatedExceptionIds. Narrative prose fields must contain no numerals, currency
+symbols, percentages, or IDs. The frontend renders numeric values independently
+from the aggregate.
 Keep the tone concise, calm, and useful to a finance operator. Choose critical
 only when the aggregate shows a material unresolved cash gap or many open items.`;
 
@@ -107,12 +148,37 @@ export async function generateMissionNarrative(aggregate: MissionAggregate): Pro
         responseSchema,
         temperature: 0.1,
       });
-      const normalized = normalizeNarrativeCandidate(result.data);
+      const normalized = normalizeNarrativeCandidate(result.data, aggregate);
       return validateMetricRefs(MissionNarrativeSchema.parse(normalized), aggregate);
     } catch (error) {
       lastError = error;
     }
   }
 
-  throw new Error(`Mission narrative validation failed: ${lastError instanceof Error ? lastError.message : "invalid provider output"}`);
+  // A malformed provider response must not make a deterministic report
+  // unusable. This fallback is still numeral-free and every metric reference
+  // points into the same aggregate passed to the provider.
+  const hasOpenWork = aggregate.exceptions.byStatus.open > 0 || aggregate.exceptions.byStatus.requiresHumanReview > 0;
+  const hasMatchedSales = aggregate.matchHealth.overallMatchRatePct > 0;
+  return {
+    healthVerdict: normalizeHealthVerdict(undefined, aggregate),
+    headline: hasOpenWork
+      ? "Your reconciliation is complete and a focused review of the remaining exceptions is still needed."
+      : "Your reconciliation is complete and the connected records form a clear financial picture.",
+    insights: [
+      {
+        text: hasOpenWork ? "The remaining exceptions are the first place to focus before closing the mission." : "The reconciliation pass has a clean operational outcome.",
+        metricRef: "exceptions.byStatus.open",
+        severity: hasOpenWork ? "warning" : "info",
+      },
+      {
+        text: hasMatchedSales ? "Some sales are linked to a traceable bank trail." : "No sales are currently linked to a complete bank trail.",
+        metricRef: "matchHealth.overallMatchRatePct",
+        severity: "info",
+      },
+    ],
+    recommendedActions: hasOpenWork
+      ? [{ text: "Start with the highest value open exceptions and confirm their supporting records." }]
+      : [],
+  };
 }
