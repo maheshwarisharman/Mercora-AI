@@ -1011,8 +1011,8 @@ export const FinanceMissionView: React.FC = () => {
               <h2 className="step-heading">Source Documents & Heuristic Understanding</h2>
             </div>
             <p className="step-description">
-              Upload source files (<code>shopify_orders.csv</code>, <code>razorpay_transactions.csv</code>, <code>amazon_settlement.txt</code>, <code>delhivery_cod.csv</code>, <code>bank_statement.csv</code>).
-              The system inspects filename & header signatures to automatically classify each document.
+              Upload your Shopify orders, Razorpay transactions, Amazon settlement, courier COD, and bank statement files.
+              We’ll recognize each file automatically and organize it so you can compare sales, payouts, fees, returns, and bank deposits.
             </p>
 
             {uploadError && (
@@ -1100,7 +1100,8 @@ export const FinanceMissionView: React.FC = () => {
               <h2 className="step-heading">Extract & Normalize Canonical Events</h2>
             </div>
             <p className="step-description">
-              Parses raw tabular rows into <code>finance.extracted_records</code> and transforms them into canonical <code>finance.normalized_events</code>. Amazon Flat File V2 rows stay line-level so every fee, withholding, refund, and unfamiliar code is inspectable.
+              We turn your uploaded files into one easy-to-follow view of sales, payments, payouts, fees, refunds, and other money movements.
+              Amazon settlement lines stay separate so every fee and deduction can be checked.
             </p>
 
             <div className="pipeline-action-row">
@@ -1157,10 +1158,11 @@ export const FinanceMissionView: React.FC = () => {
           <section className="finance-step-card">
             <div className="step-badge-row">
               <span className="step-num">Step 4</span>
-              <h2 className="step-heading">Deterministic Reconciliation & Exception Detection</h2>
+              <h2 className="step-heading">Reconciliation & Exception Detection</h2>
             </div>
             <p className="step-description">
-              Traverses <code>SALE → PAYMENT → SETTLEMENT → BANK_TRANSACTION</code>, <code>SALE(S) → COD_REMITTANCE → BANK_TRANSACTION</code>, and <code>SALE(S) → AMAZON_SETTLEMENT → BANK_TRANSACTION</code>. Amazon batches use a 90-day order lookback; arithmetic and bank matching remain deterministic.
+              We compare each sale with its payment, marketplace or courier payout, and bank deposit.
+              Anything that doesn’t line up—such as a missing payout, return, fee, or amount difference—is flagged for you to review.
             </p>
 
             <div className="pipeline-action-row">

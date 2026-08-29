@@ -34,6 +34,43 @@ function getPath(root: unknown, path: string): unknown {
   }, root);
 }
 
+/**
+ * Providers sometimes serialize the same contract using snake_case or a
+ * human-friendly verdict such as "needs review". Normalize those transport
+ * variations before the strict schema guard runs; never relax the guard itself.
+ */
+function normalizeNarrativeCandidate(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const candidate = ((raw as Record<string, unknown>).narrative || raw) as Record<string, any>;
+  const verdict = String(candidate.healthVerdict ?? candidate.health_verdict ?? candidate.verdict ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  const rawInsights = candidate.insights ?? candidate.key_insights ?? candidate.observations ?? [];
+  const rawActions = candidate.recommendedActions ?? candidate.recommended_actions ?? candidate.actions ?? [];
+
+  return {
+    ...candidate,
+    healthVerdict: verdict,
+    headline: candidate.headline ?? candidate.summary_headline ?? candidate.title,
+    insights: Array.isArray(rawInsights)
+      ? rawInsights.map((insight: Record<string, any>) => ({
+          ...insight,
+          text: insight.text ?? insight.observation ?? insight.insight,
+          metricRef: insight.metricRef ?? insight.metric_ref ?? insight.metric,
+          severity: String(insight.severity ?? "info").toLowerCase(),
+        }))
+      : rawInsights,
+    recommendedActions: Array.isArray(rawActions)
+      ? rawActions.map((action: Record<string, any>) => ({
+          ...action,
+          text: action.text ?? action.action ?? action.recommendation,
+          relatedExceptionIds: action.relatedExceptionIds ?? action.related_exception_ids,
+        }))
+      : [],
+  };
+}
+
 function validateMetricRefs(narrative: MissionNarrative, aggregate: MissionAggregate): MissionNarrative {
   for (const insight of narrative.insights) {
     if (typeof getPath(aggregate, insight.metricRef) !== "number") {
@@ -70,7 +107,8 @@ export async function generateMissionNarrative(aggregate: MissionAggregate): Pro
         responseSchema,
         temperature: 0.1,
       });
-      return validateMetricRefs(MissionNarrativeSchema.parse(result.data), aggregate);
+      const normalized = normalizeNarrativeCandidate(result.data);
+      return validateMetricRefs(MissionNarrativeSchema.parse(normalized), aggregate);
     } catch (error) {
       lastError = error;
     }
