@@ -29,12 +29,16 @@ function compactEvent(event: any): Record<string, unknown> {
   };
 }
 
-export async function getAmazonDeductionContext(args: Record<string, unknown>): Promise<unknown> {
+export async function getAmazonDeductionContext(
+  args: Record<string, unknown>,
+  context?: { merchantId?: string; missionId?: string },
+): Promise<unknown> {
   const exceptionId = String(args.exception_id || "");
   if (!exceptionId) return { error: "exception_id is required" };
   const supabase = getServiceSupabase();
-  const { data: exception, error: exceptionError } = await supabase
-    .schema("finance").from("exceptions").select("*").eq("id", exceptionId).single();
+  let exceptionQuery = supabase.schema("finance").from("exceptions").select("*").eq("id", exceptionId);
+  if (context?.missionId) exceptionQuery = exceptionQuery.eq("mission_id", context.missionId);
+  const { data: exception, error: exceptionError } = await exceptionQuery.single();
   if (exceptionError || !exception) return { error: exceptionError?.message || "Exception not found" };
 
   const eventIds = Array.isArray(exception.normalized_event_ids) ? exception.normalized_event_ids : [];

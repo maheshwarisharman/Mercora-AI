@@ -16,7 +16,7 @@ export const listOpenExceptionsDefinition: ToolDefinition = {
     properties: {
       mission_id: {
         type: "string",
-        description: "UUID of the finance mission to query.",
+        description: "Optional mission UUID. The server injects the current mission automatically.",
       },
       filters: {
         type: "object",
@@ -36,7 +36,7 @@ export const listOpenExceptionsDefinition: ToolDefinition = {
         },
       },
     },
-    required: ["mission_id"],
+    required: [],
   },
 };
 

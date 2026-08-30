@@ -32,7 +32,10 @@ export const getTransactionChainDefinition: ToolDefinition = {
   },
 };
 
-export async function getTransactionChain(args: Record<string, unknown>): Promise<unknown> {
+export async function getTransactionChain(
+  args: Record<string, unknown>,
+  context?: { merchantId?: string; missionId?: string },
+): Promise<unknown> {
   const orderRef = String(args.order_ref || "");
   if (!orderRef) return { error: "order_ref is required" };
 
@@ -41,11 +44,14 @@ export async function getTransactionChain(args: Record<string, unknown>): Promis
   const orderRefSearchValue = postgrestFilterValue(`%${orderRef}%`);
 
   // Find normalized events matching the order ref in external_ref or metadata
-  const { data: events, error: evErr } = await supabase
+  let eventQuery = supabase
     .schema("finance")
     .from("normalized_events")
-    .select("*")
-    .or(
+    .select("*");
+  if (context?.missionId) eventQuery = eventQuery.eq("mission_id", context.missionId);
+  if (context?.merchantId) eventQuery = eventQuery.eq("merchant_id", context.merchantId);
+
+  const { data: events, error: evErr } = await eventQuery.or(
       // Use ->> here: -> returns jsonb, causing PostgreSQL to parse values
       // such as "#MRC-24015" as JSON and fail with invalid input syntax.
       `external_ref.ilike.${orderRefSearchValue},metadata->>order_ref.eq.${orderRefFilterValue},metadata->>order_number.eq.${orderRefFilterValue}`

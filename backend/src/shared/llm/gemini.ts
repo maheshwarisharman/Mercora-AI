@@ -324,6 +324,37 @@ export class GeminiProvider implements LLMProvider {
   private _mockStepIndex = 0;
 
   private _mockAgentStep(req: AgentStepRequest): AgentStepResult {
+    // Keep the offline/demo provider useful for the same cross-source QA path
+    // as the live model. This branch is intentionally based on the user's
+    // question and the returned tool result, rather than fabricated figures.
+    const latestQuestion = [...req.messages]
+      .reverse()
+      .find((message) => message.role === "user")?.content.toLowerCase() || "";
+    const isSourceComparison =
+      latestQuestion.includes("amazon") &&
+      latestQuestion.includes("shopify") &&
+      /(sale|sell|revenue|amount|versus|vs)/.test(latestQuestion);
+    const hasSourceComparisonResult = req.messages.some(
+      (message) => message.role === "tool" && message.content.includes("sales_comparison")
+    );
+
+    if (isSourceComparison) {
+      if (!hasSourceComparisonResult) {
+        return {
+          message: {
+            role: "assistant",
+            content: "",
+            toolCalls: [{ id: "mock_source_comparison", name: "compare_sales_by_source", arguments: {} }],
+          },
+          requestsToolCalls: true,
+        };
+      }
+      return {
+        message: { role: "assistant", content: "Source comparison retrieved." },
+        requestsToolCalls: false,
+      };
+    }
+
     const stepSeq = [
       // Step 0: call get_exception_details
       (): AgentStepResult => ({
@@ -465,6 +496,24 @@ export class GeminiProvider implements LLMProvider {
 
     // Q&A purpose — detect from userPrompt shape
     if (req.userPrompt.includes('"answer"') || req.userPrompt.includes("cited_exception_ids")) {
+      if (req.userPrompt.includes('"sales_comparison"')) {
+        const readMetric = (name: string): number | null => {
+          const match = req.userPrompt.match(new RegExp(`"${name}"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`));
+          if (!match) return null;
+          const value = Number(match[1]);
+          return Number.isFinite(value) ? value : null;
+        };
+        const amazon = readMetric("amazon_gross_sales_inr");
+        const shopify = readMetric("shopify_gross_sales_inr");
+        const difference = readMetric("amazon_minus_shopify_inr");
+        if (amazon !== null && shopify !== null && difference !== null) {
+          return {
+            answer: `Amazon gross sales were ₹${amazon.toFixed(2)} versus Shopify gross sales of ₹${shopify.toFixed(2)}, a difference of ₹${difference.toFixed(2)} in favor of ${difference >= 0 ? "Amazon" : "Shopify"}.`,
+            cited_exception_ids: [],
+            cited_evidence_ids: [],
+          } as T;
+        }
+      }
       return {
         answer: "Based on the current mission data, I found several open exceptions that need your attention. The most significant is an unexplained ₹500 difference on order SHF-1038.",
         cited_exception_ids: [],

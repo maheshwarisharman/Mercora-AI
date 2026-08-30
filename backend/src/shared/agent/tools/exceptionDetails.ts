@@ -22,18 +22,22 @@ export const getExceptionDetailsDefinition: ToolDefinition = {
   },
 };
 
-export async function getExceptionDetails(args: Record<string, unknown>): Promise<unknown> {
+export async function getExceptionDetails(
+  args: Record<string, unknown>,
+  context?: { merchantId?: string; missionId?: string },
+): Promise<unknown> {
   const exceptionId = String(args.exception_id || "");
   if (!exceptionId) return { error: "exception_id is required" };
 
   const supabase = getServiceSupabase();
 
-  const { data: exception, error: exErr } = await supabase
+  let exceptionQuery = supabase
     .schema("finance")
     .from("exceptions")
     .select("*")
-    .eq("id", exceptionId)
-    .single();
+    .eq("id", exceptionId);
+  if (context?.missionId) exceptionQuery = exceptionQuery.eq("mission_id", context.missionId);
+  const { data: exception, error: exErr } = await exceptionQuery.single();
 
   if (exErr || !exception) {
     return { error: exErr?.message || "Exception not found" };

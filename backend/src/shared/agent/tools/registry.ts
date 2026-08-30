@@ -6,6 +6,7 @@ import { getMissionSummaryDefinition, getMissionSummary } from "./missionSummary
 import { listOpenExceptionsDefinition, listOpenExceptions } from "./listOpenExceptions";
 import { requestHumanReviewDefinition, requestHumanReview } from "./requestHumanReview";
 import { getAmazonDeductionContextDefinition, getAmazonDeductionContext } from "./amazonDeductionContext";
+import { compareSalesBySourceDefinition, compareSalesBySource } from "./sourceBreakdown";
 import {
   getBankCreditDefinition,
   listCandidateBatchesDefinition,
@@ -35,6 +36,7 @@ export const financeToolDefinitions: ToolDefinition[] = [
   listCandidateBatchesDefinition,
   getNarrationHistoryDefinition,
   getAmazonDeductionContextDefinition,
+  compareSalesBySourceDefinition,
 ];
 
 /**
@@ -45,13 +47,14 @@ export function createFinanceToolImplementations(
   ctx: ToolContext
 ): Record<string, (args: Record<string, unknown>) => Promise<unknown>> {
   return {
-    get_transaction_chain: (args) => getTransactionChain(args),
-    get_exception_details: (args) => getExceptionDetails(args),
+    get_transaction_chain: (args) => getTransactionChain(args, ctx),
+    get_exception_details: (args) => getExceptionDetails(args, ctx),
     search_evidence: (args) => searchEvidence(args),
-    get_mission_summary: (args) => getMissionSummary(args),
-    list_open_exceptions: (args) => listOpenExceptions(args),
+    get_mission_summary: (args) => getMissionSummary({ ...args, mission_id: ctx.missionId || args.mission_id }),
+    list_open_exceptions: (args) => listOpenExceptions({ ...args, mission_id: ctx.missionId || args.mission_id }),
     request_human_review: (args) => requestHumanReview(args, ctx),
-    get_amazon_deduction_context: (args) => getAmazonDeductionContext(args),
+    get_amazon_deduction_context: (args) => getAmazonDeductionContext(args, ctx),
+    compare_sales_by_source: (args) => compareSalesBySource(args, ctx),
     ...createBankCreditToolImplementations(ctx),
   };
 }
@@ -68,6 +71,7 @@ export {
   listCandidateBatches,
   getNarrationHistory,
   getAmazonDeductionContext,
+  compareSalesBySource,
 };
 
 export type { EvidenceResult } from "./searchEvidence";

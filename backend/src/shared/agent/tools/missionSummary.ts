@@ -15,10 +15,10 @@ export const getMissionSummaryDefinition: ToolDefinition = {
     properties: {
       mission_id: {
         type: "string",
-        description: "UUID of the finance mission to summarise.",
+        description: "Optional mission UUID. The server injects the current mission automatically.",
       },
     },
-    required: ["mission_id"],
+    required: [],
   },
 };
 

@@ -312,7 +312,6 @@ export const FinanceMissionView: React.FC = () => {
   // Exception Expansion & Investigation State
   const [expandedExceptionId, setExpandedExceptionId] = useState<string | null>(null);
   const [explainingExceptionId, setExplainingExceptionId] = useState<string | null>(null);
-  const [selectedSignalsMatch, setSelectedSignalsMatch] = useState<ReconciledMatch | null>(null);
   const [exceptionTraces, setExceptionTraces] = useState<Record<string, AgentTraceStep[]>>({});
   const [exceptionBudgetHit, setExceptionBudgetHit] = useState<Record<string, boolean>>({});
   const exceptionRowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
@@ -1127,7 +1126,7 @@ export const FinanceMissionView: React.FC = () => {
           {/* STEP 3: Extraction & Normalization Action */}
           <section className="finance-step-card">
             <div className="step-badge-row">
-              <h2 className="step-heading">Extract & Normalize Canonical Events</h2>
+              <h2 className="step-heading">Process Events</h2>
             </div>
             <p className="step-description">
               We turn your uploaded files into one easy-to-follow view of sales, payments, payouts, fees, refunds, and other money movements.

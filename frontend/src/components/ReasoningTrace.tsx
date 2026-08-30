@@ -41,6 +41,7 @@ function toolLabel(toolName: string): string {
     get_narration_history: "Narration Pattern Check",
     get_mission_summary: "Mission Exposure Summary",
     list_open_exceptions: "Open Exceptions Query",
+    compare_sales_by_source: "Sales by Source Comparison",
     request_human_review: "Escalated for Human Review",
   };
   return labels[toolName] || toolName.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
@@ -64,6 +65,8 @@ function ToolIcon({ toolName, size = 13 }: { toolName: string; size?: number }) 
       return <ListFilter size={size} className="text-[#5d7b82]" />;
     case "get_narration_history":
       return <FileSearch size={size} className="text-[#869b9d]" />;
+    case "compare_sales_by_source":
+      return <Layers size={size} className="text-[#c99548]" />;
     case "request_human_review":
       return <AlertTriangle size={size} className="text-[#b04b43]" />;
     default:
@@ -368,6 +371,27 @@ function extractMerchantTakeaway(toolName: string, result: any, args: Record<str
       };
     }
 
+    case "compare_sales_by_source": {
+      const comparison = result.sales_comparison || {};
+      const amazon = Number(comparison.amazon_gross_sales_inr || 0);
+      const shopify = Number(comparison.shopify_gross_sales_inr || 0);
+      const amazonRows = result.by_source?.amazon || {};
+      const shopifyRows = result.by_source?.shopify || {};
+      return {
+        headline: (
+          <span>
+            Amazon gross sales: <strong className="text-[#c99548]">{formatInr(amazon)}</strong> vs Shopify: <strong className="text-[#29745d]">{formatInr(shopify)}</strong>
+          </span>
+        ),
+        details: (
+          <span>
+            Matched sales: Amazon {amazonRows.matched_sale_order_count ?? 0} order(s), Shopify {shopifyRows.matched_sale_order_count ?? 0} order(s) • Settlement context included where ingested.
+          </span>
+        ),
+        badge: { label: "Source Comparison", type: "gold" },
+      };
+    }
+
     case "request_human_review": {
       const reason = result.reason || args.reason || "Ambiguous evidence requires human review.";
       return {
@@ -500,9 +524,6 @@ export const ReasoningTrace: React.FC<ReasoningTraceProps> = ({
         aria-expanded={!collapsed}
       >
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-[#18324b] text-[#c99548] flex items-center justify-center font-mono text-[9px] font-bold">
-            ⚡
-          </div>
           <span className="text-xs font-bold text-[#18324b] tracking-tight uppercase">
             Agent Reasoning & Evidence Trace
           </span>
