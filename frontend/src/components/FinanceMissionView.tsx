@@ -757,21 +757,21 @@ export const FinanceMissionView: React.FC = () => {
   }
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full min-h-full space-y-6 bg-[#fbfcfa] text-[#18324b] [--bg-base:#fbfcfa] [--bg-surface:#fbfcfa] [--bg-surface-elevated:#eef3ef] [--bg-card:#fbfcfa] [--border-subtle:#dfe7e3] [--text-primary:#18324b] [--text-secondary:#567079] [--text-muted:#567079] [--accent-primary:#18324b] [--accent-primary-hover:#2e5962] [--accent-emerald:#29745d] [--accent-rose-red:#b04b43] [&_.finance-step-card]:!rounded-none [&_.finance-step-card]:!bg-[#fbfcfa] [&_.finance-step-card]:!border-[#dfe7e3] [&_.finance-step-card]:!shadow-none [&_.step-num]:!rounded-none [&_.step-num]:!bg-[#eef3ef] [&_.step-num]:!border-[#dfe7e3] [&_.step-num]:!text-[#18324b] [&_.dropzone]:!rounded-none [&_.dropzone]:!bg-[#f1f4f0] [&_.dropzone]:!border-[#869b9d] [&_.doc-card]:!rounded-none [&_.doc-card]:!bg-[#f1f4f0] [&_.doc-card]:!border-[#dfe7e3] [&_.source-checkbox-label]:!rounded-none [&_.source-checkbox-label]:!bg-[#f1f4f0] [&_.source-checkbox-label]:!border-[#dfe7e3] [&_.alert]:!rounded-none [&_.alert-error]:!bg-[#fff1ef] [&_.alert-error]:!border-[#efd2cf] [&_.alert-error]:!text-[#b04b43] [&_.process-logs-terminal]:!rounded-none [&_.process-logs-terminal]:!bg-[#18324b] [&_.process-logs-terminal]:!border-[#2e5962] [&_.amazon-reconciliation-panel]:!rounded-none [&_.amazon-reconciliation-panel]:!bg-[#fff8eb] [&_.amazon-reconciliation-panel]:!border-[#e8d6b5] [&_.amazon-panel-heading]:!border-[#e8d6b5] [&_.amazon-kicker]:!text-[#c99548] [&_.amazon-panel-heading_h3]:!text-[#18324b] [&_.amazon-panel-heading_p]:!text-[#567079] [&_.amazon-summary-grid]:!bg-[#e8d6b5] [&_.amazon-summary-grid>div]:!bg-[#fff8eb] [&_.amazon-summary-grid_strong]:!text-[#18324b] [&_.amazon-summary-grid_span]:!text-[#567079] [&_.amazon-line-table-wrap]:!bg-[#fbfcfa] [&_.amazon-line-table_th]:!bg-[#eef3ef] [&_.amazon-line-table_th]:!text-[#567079] [&_.amazon-line-table_td]:!border-[#dfe7e3] [&_.amazon-line-table_td]:!text-[#18324b] [&_.amazon-line-table_code]:!text-[#2e5962] [&_.amazon-amount]:!text-[#18324b] [&_.amazon-decision.expected]:!text-[#29745d] [&_.amazon-decision.classified]:!text-[#29745d] [&_.amazon-decision.review]:!text-[#c99548] [&_.btn-text-sm]:!rounded-none [&_.btn-text-sm]:!bg-[#fbfcfa] [&_.btn-text-sm]:!border-[#dfe7e3] [&_.btn-text-sm]:!text-[#18324b] [&_.judgment-card]:!rounded-none [&_.judgment-card]:!bg-[#fbfcfa] [&_.judgment-card]:!border-[#dfe7e3] [&_.judgment-card]:!shadow-none [&_.judgment-evidence-section]:!rounded-none [&_.judgment-evidence-section]:!bg-[#f1f4f0] [&_.evidence-item-card]:!rounded-none [&_.evidence-item-card]:!bg-[#fbfcfa] [&_.evidence-item-card]:!border-[#dfe7e3] [&_.judgment-action-box]:!rounded-none [&_.judgment-action-box]:!bg-[#eef3ef] [&_.judgment-action-box]:!border-[#dfe7e3]">
       {/* SaaS Dashboard Header */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all">
+      <div className="bg-[#fbfcfa] border border-[#dfe7e3] rounded-none p-6 sm:p-8 shadow-none flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
             {activeMission && (
-              <span className="text-xs font-mono font-medium text-slate-500">
+              <span className="text-xs font-mono font-medium text-[#567079]">
                 / Mission #{activeMission.id.slice(0, 8)}
               </span>
             )}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[#18324b] tracking-tight">
             {activeMission ? `Mission #${activeMission.id.slice(0, 8)}` : "Finance Missions"}
           </h1>
-          <p className="text-sm text-slate-500 mt-1.5 max-w-3xl leading-relaxed">
+          <p className="text-sm text-[#567079] mt-1.5 max-w-3xl leading-relaxed">
             {activeMission
               ? activeMission.objective || "Reconcile multi-channel sales against settlement payouts and bank credits."
               : "Manage and execute multi-source financial reconciliation missions across Shopify, Razorpay, and Bank statements."}
@@ -784,7 +784,7 @@ export const FinanceMissionView: React.FC = () => {
               {(activeMission.status === "needs_review" || activeMission.status === "completed" || activeMission.status === "closed") && (
                 <button
                   onClick={() => setShowSummary(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors border border-slate-300 shadow-2xs cursor-pointer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-none text-sm font-medium text-[#18324b] bg-[#fbfcfa] hover:bg-[#f1f4f0] transition-colors border border-[#dfe7e3] shadow-none cursor-pointer"
                 >
                   <ShieldAlert size={16} />
                   <span>View summary</span>
@@ -792,7 +792,7 @@ export const FinanceMissionView: React.FC = () => {
               )}
               <button
                 onClick={() => { setActiveMission(null); setShowSummary(false); }}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors border border-slate-200 shadow-2xs cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-none text-sm font-medium text-[#18324b] bg-[#eef3ef] hover:bg-[#dfe7e3] transition-colors border border-[#dfe7e3] shadow-none cursor-pointer"
               >
                 <ArrowLeft size={16} />
                 <span>All Missions Table</span>
@@ -802,7 +802,7 @@ export const FinanceMissionView: React.FC = () => {
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="btn-primary"
+            className="btn-primary !rounded-none !bg-[#18324b] !border-[#18324b] hover:!bg-[#2e5962] hover:!border-[#2e5962] !shadow-none"
           >
             <Plus size={17} className="stroke-[2.5]" />
             <span >New Mission</span>
@@ -812,29 +812,29 @@ export const FinanceMissionView: React.FC = () => {
 
       {/* VIEW 1: ALL MISSIONS SAAS TABLE (when no active mission) */}
       {!activeMission ? (
-        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden w-full">
+        <div className="bg-[#fbfcfa] border border-[#dfe7e3] rounded-none shadow-none overflow-hidden w-full">
           {/* Table Toolbar */}
-          <div className="p-4 sm:p-5 border-b border-slate-200/80 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 border-b border-[#dfe7e3] bg-[#f1f4f0] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
               {/* Search Bar */}
               <div className="relative flex-1 min-w-[280px]">
-                <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#567079] pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search missions by ID, goal, or date range..."
                   value={missionSearchTerm}
                   onChange={(e) => setMissionSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-[#fbfcfa] border border-[#dfe7e3] rounded-none text-[#18324b] placeholder:text-[#567079] focus:outline-none focus:ring-2 focus:ring-[#c99548]/20 focus:border-[#dfe7e3] shadow-none transition-all"
                 />
               </div>
 
               {/* Filter Dropdown */}
               <div className="flex items-center gap-2 shrink-0">
-                <Filter size={15} className="text-slate-400 shrink-0" />
+                <Filter size={15} className="text-[#567079] shrink-0" />
                 <select
                   value={missionStatusFilter}
                   onChange={(e) => setMissionStatusFilter(e.target.value)}
-                  className="px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs transition-all cursor-pointer"
+                  className="px-3.5 py-2.5 text-sm bg-[#fbfcfa] border border-[#dfe7e3] rounded-none text-[#18324b] font-medium focus:outline-none focus:ring-2 focus:ring-[#c99548]/20 focus:border-[#dfe7e3] shadow-none transition-all cursor-pointer"
                 >
                   <option value="ALL">All Status</option>
                   <option value="created">Created</option>
@@ -846,8 +846,8 @@ export const FinanceMissionView: React.FC = () => {
               </div>
             </div>
 
-            <div className="text-xs font-semibold text-slate-500 shrink-0">
-              Showing <span className="text-slate-900 font-bold">{filteredMissions.length}</span> of <span className="text-slate-900 font-bold">{missions.length}</span> missions
+            <div className="text-xs font-semibold text-[#567079] shrink-0">
+              Showing <span className="text-[#18324b] font-bold">{filteredMissions.length}</span> of <span className="text-[#18324b] font-bold">{missions.length}</span> missions
             </div>
           </div>
 
@@ -855,7 +855,7 @@ export const FinanceMissionView: React.FC = () => {
           <div className="overflow-x-auto w-full">
             <table className="w-full text-left text-sm border-collapse">
               <thead>
-                <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <tr className="border-b border-[#dfe7e3] bg-[#f1f4f0] text-[11px] font-bold text-[#567079] uppercase tracking-wider">
                   <th className="py-4 px-6 min-w-[160px]">Mission ID</th>
                   <th className="py-4 px-6 min-w-[280px]">Goal</th>
                   <th className="py-4 px-6 min-w-[220px]">Date Period</th>
@@ -865,25 +865,25 @@ export const FinanceMissionView: React.FC = () => {
                   <th className="py-4 px-6 min-w-[110px] text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
+              <tbody className="divide-y divide-[#dfe7e3] bg-[#fbfcfa]">
                 {loadingMissions ? (
                   <tr>
-                    <td colSpan={6} className="py-16 text-center text-slate-400">
-                      <div className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-50 border border-slate-200/70">
-                        <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-sm font-medium text-slate-600">Loading finance missions...</span>
+                    <td colSpan={6} className="py-16 text-center text-[#567079]">
+                      <div className="inline-flex items-center gap-3 px-4 py-2 rounded-none bg-[#f1f4f0] border border-[#dfe7e3]">
+                        <div className="w-4 h-4 border-2 border-[#dfe7e3] border-t-transparent rounded-none animate-spin" />
+                        <span className="text-sm font-medium text-[#567079]">Loading finance missions...</span>
                       </div>
                     </td>
                   </tr>
                 ) : filteredMissions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-20 text-center text-slate-400">
-                      <FileText size={40} className="mx-auto mb-3 text-slate-300 stroke-[1.5]" />
-                      <p className="font-bold text-slate-800 text-base">No finance missions found</p>
-                      <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Create your first mission to initialize automated reconciliation across Shopify, Razorpay & Bank data.</p>
+                    <td colSpan={6} className="py-20 text-center text-[#567079]">
+                      <FileText size={40} className="mx-auto mb-3 text-[#b4c2bd] stroke-[1.5]" />
+                      <p className="font-bold text-[#18324b] text-base">No finance missions found</p>
+                      <p className="text-xs text-[#567079] mt-1 max-w-sm mx-auto">Create your first mission to initialize automated reconciliation across Shopify, Razorpay & Bank data.</p>
                       <button
                         onClick={() => setShowCreateModal(true)}
-                        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-xs cursor-pointer"
+                        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-none text-xs font-semibold text-white bg-[#18324b] hover:bg-[#2e5962] transition-all shadow-none cursor-pointer"
                       >
                         <Plus size={15} />
                         <span>Create Mission</span>
@@ -897,31 +897,31 @@ export const FinanceMissionView: React.FC = () => {
                       <tr
                         key={m.id}
                         onClick={() => openMission(m)}
-                        className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                        className="hover:bg-[#f1f4f0] transition-colors cursor-pointer group"
                       >
                         {/* Mission ID & Goal */}
                         <td className="py-4.5 px-6 whitespace-nowrap">
                           <div className="inline-flex items-center gap-3">
-                            <span className="font-mono font-bold text-xs text-slate-800 px-2.5 py-1 rounded-md shrink-0">
+                            <span className="font-mono font-bold text-xs text-[#18324b] px-2.5 py-1 rounded-none shrink-0">
                               #{m.id.slice(0, 8)}
                             </span>
                           </div>
                         </td>
 
                         {/* Mission Goal */}
-                        <td className="py-4.5 px-6 text-xs font-medium text-slate-700 whitespace-nowrap ">
+                        <td className="py-4.5 px-6 text-xs font-medium text-[#18324b] whitespace-nowrap ">
                           <div className="inline-flex items-center gap-2 px-3 py-1 font-mono text-[12px]">
-                          <span className="text-sm font-medium text-slate-800 truncate max-w-[300px]" title={m.objective || "Financial Reconciliation"}>
+                          <span className="text-sm font-medium text-[#18324b] truncate max-w-[300px]" title={m.objective || "Financial Reconciliation"}>
                             {m.objective || "Financial Reconciliation"}
                           </span>
                           </div>
                         </td>
 
                         {/* Period */}
-                        <td className="py-4.5 px-6 text-xs font-medium text-slate-700 whitespace-nowrap">
-                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200/70 font-mono text-[12px]">
+                        <td className="py-4.5 px-6 text-xs font-medium text-[#18324b] whitespace-nowrap">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-none bg-[#f1f4f0] border border-[#dfe7e3] font-mono text-[12px]">
                             <span>{m.period_start}</span>
-                            <span className="text-slate-400 font-bold">→</span>
+                            <span className="text-[#567079] font-bold">→</span>
                             <span>{m.period_end}</span>
                           </div>
                         </td>
@@ -932,7 +932,7 @@ export const FinanceMissionView: React.FC = () => {
                             {srcs.map((s) => (
                               <span
                                 key={s}
-                                className="text-xs font-medium px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 border border-slate-200/80 capitalize"
+                                className="text-xs font-medium px-2.5 py-1 rounded-none bg-[#eef3ef] text-[#18324b] border border-[#dfe7e3] capitalize"
                               >
                                 {s}
                               </span>
@@ -943,29 +943,29 @@ export const FinanceMissionView: React.FC = () => {
                         {/* Status */}
                         <td className="py-4.5 px-6 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border capitalize ${
+                            className={`inline-flex items-center gap-2 px-3 py-1 rounded-none text-xs font-semibold border capitalize ${
                               m.status === "closed" || m.status === "completed"
-                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                ? "bg-[#eef3ef] text-[#29745d] border-[#dfe7e3]"
                                 : m.status === "needs_review"
-                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                ? "bg-[#fff8eb] text-[#8a642b] border-[#e8d6b5]"
                                 : m.status === "reconciling"
-                                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                ? "bg-[#eef3ef] text-[#18324b] border-[#dfe7e3]"
                                 : m.status === "ingesting"
-                                ? "bg-blue-50 text-blue-700 border-blue-200"
-                                : "bg-slate-100 text-slate-700 border-slate-200"
+                                ? "bg-[#eef3ef] text-[#2e5962] border-[#dfe7e3]"
+                                : "bg-[#eef3ef] text-[#18324b] border-[#dfe7e3]"
                             }`}
                           >
                             <span
-                              className={`w-2 h-2 rounded-full ${
+                              className={`w-2 h-2 rounded-none ${
                                 m.status === "closed" || m.status === "completed"
-                                  ? "bg-emerald-500"
+                                  ? "bg-[#29745d]"
                                   : m.status === "needs_review"
-                                  ? "bg-amber-500 animate-pulse"
+                                  ? "bg-[#c99548] animate-pulse"
                                   : m.status === "reconciling"
-                                  ? "bg-indigo-500 animate-pulse"
+                                  ? "bg-[#2e5962] animate-pulse"
                                   : m.status === "ingesting"
-                                  ? "bg-blue-500 animate-pulse"
-                                  : "bg-slate-400"
+                                  ? "bg-[#2e5962] animate-pulse"
+                                  : "bg-[#869b9d]"
                               }`}
                             />
                             <span>{m.status.replace("_", " ")}</span>
@@ -973,7 +973,7 @@ export const FinanceMissionView: React.FC = () => {
                         </td>
 
                         {/* Created Date */}
-                        <td className="py-4.5 px-6 text-xs font-medium text-slate-500 whitespace-nowrap">
+                        <td className="py-4.5 px-6 text-xs font-medium text-[#567079] whitespace-nowrap">
                           {new Date(m.created_at).toLocaleDateString("en-US", {
                             month: "short",
                             day: "numeric",
@@ -988,7 +988,7 @@ export const FinanceMissionView: React.FC = () => {
                               e.stopPropagation();
                               openMission(m);
                             }}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 group-hover:border-indigo-300 transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-none text-xs font-semibold text-[#18324b] bg-[#eef3ef] hover:bg-[#eef3ef] border border-[#dfe7e3] group-hover:border-[#dfe7e3] transition-all shadow-none cursor-pointer"
                           >
                             <span>Open</span>
                             <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
@@ -1056,12 +1056,12 @@ export const FinanceMissionView: React.FC = () => {
                   {documents.map((doc) => (
                     <div key={doc.id} className="doc-card">
                       <div className="doc-card-top">
-                        <FileSpreadsheet size={20} className="text-indigo" />
+                        <FileSpreadsheet size={20} className="text-[#18324b]" />
                         <span className="doc-filename truncate">{doc.original_filename}</span>
                       </div>
 
                       <div className="doc-meta-row">
-                        <span className={`badge-source ${doc.detected_source}`}>
+                        <span className={`badge-source ${doc.detected_source} !rounded-none !bg-[#eef3ef] !text-[#18324b] !border-[#dfe7e3]`}>
                           {doc.detected_source.replace("_", " ")}
                         </span>
                         <span className="confidence-pill">
@@ -1108,7 +1108,7 @@ export const FinanceMissionView: React.FC = () => {
               <button
                 onClick={handleExtractAndNormalize}
                 disabled={processingPipeline || documents.length === 0}
-                className="btn-primary"
+                className="btn-primary !rounded-none !bg-[#18324b] !border-[#18324b] hover:!bg-[#2e5962] hover:!border-[#2e5962] !shadow-none"
               >
                 {processingPipeline ? (
                   <>
@@ -1169,7 +1169,7 @@ export const FinanceMissionView: React.FC = () => {
               <button
                 onClick={handleReconcile}
                 disabled={reconciling || events.length === 0}
-                className="btn-primary"
+                className="btn-primary !rounded-none !bg-[#18324b] !border-[#18324b] hover:!bg-[#2e5962] hover:!border-[#2e5962] !shadow-none"
               >
                 {reconciling ? (
                   <>
@@ -1242,7 +1242,7 @@ export const FinanceMissionView: React.FC = () => {
                           <tr key={event.id}>
                             <td>
                               <strong>{feeCategory}</strong>
-                              <small className="block text-slate-500">{feeCode}</small>
+                              <small className="block text-[#567079]">{feeCode}</small>
                             </td>
                             <td>{feeCategory}</td>
                             <td>{event.metadata?.order_ref || "Settlement-level"}</td>
@@ -1279,10 +1279,10 @@ export const FinanceMissionView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="w-full overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-xs">
+                <div className="w-full overflow-x-auto rounded-none border border-[#dfe7e3] bg-[#fbfcfa] shadow-none">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <tr className="border-b border-[#dfe7e3] bg-[#f1f4f0] text-[11px] font-semibold uppercase tracking-wider text-[#567079]">
                         <th className="px-4 py-3">Order Ref</th>
                         <th className="px-4 py-3">Match Type</th>
                         <th className="px-4 py-3">Confidence</th>
@@ -1291,7 +1291,7 @@ export const FinanceMissionView: React.FC = () => {
                         <th className="px-4 py-3">Signals Breakdown</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-[#dfe7e3]">
                       {matches.map((m) => {
                         const linkedEvts = (m.event_ids || [])
                           .map((id) => eventMap.get(id))
@@ -1301,27 +1301,27 @@ export const FinanceMissionView: React.FC = () => {
                         const orderRef = saleEvt?.external_ref || saleEvt?.metadata?.order_number || m.id.slice(0, 8);
 
                         return (
-                          <tr key={m.id} className="hover:bg-slate-50/60 transition-colors">
+                          <tr key={m.id} className="hover:bg-[#f1f4f0] transition-colors">
                             <td className="px-4 py-3">
                               <code className="ref-code">{orderRef}</code>
                             </td>
                             <td className="px-4 py-3">
                               <span className="match-type-tag">{m.match_type.match("exact_id") ? "Exact" : "Best-effort match"}</span>
                             </td>
-                            <td className="px-4 py-3 font-semibold text-slate-700">
+                            <td className="px-4 py-3 font-semibold text-[#18324b]">
                               <span>
                                 {m.confidence}%
                               </span>
                             </td>
                             <td className="px-4 py-3">
-                              <span className="capitalize text-slate-600 font-medium">
+                              <span className="capitalize text-[#567079] font-medium">
                                 {m.status.replace(/_/g, " ")}
                               </span>
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex gap-1">
                                 {linkedEvts.map((e) => (
-                                  <span key={e.id} className={`event-badge ${e.event_type}`}>
+                                  <span key={e.id} className={`event-badge ${e.event_type} !rounded-none !bg-[#eef3ef] !text-[#18324b] !border-[#dfe7e3]`}>
                                     {chainLegLabel(e.event_type)}
                                   </span>
                                 ))}
@@ -1339,7 +1339,7 @@ export const FinanceMissionView: React.FC = () => {
                                 {selectedSignalsMatch?.id === m.id ? "Hide Match Details" : "View Match Details"}
                               </button>
                               {selectedSignalsMatch?.id === m.id && (
-                                <div className="mt-2 p-2 bg-slate-100 rounded text-xs font-mono">
+                                <div className="mt-2 p-2 bg-[#eef3ef] rounded-none text-xs font-mono">
                                   <pre>{JSON.stringify(m.signals, null, 2)}</pre>
                                 </div>
                               )}
@@ -1358,15 +1358,15 @@ export const FinanceMissionView: React.FC = () => {
               <div className="mt-8">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <ShieldAlert size={20} className="text-amber" />
+                    <ShieldAlert size={20} className="text-[#c99548]" />
                     <h4 className="docs-list-title">Detected Exceptions & Discrepancies ({exceptions.length})</h4>
                   </div>
                 </div>
 
-                <div className="w-full overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-xs">
+                <div className="w-full overflow-x-auto rounded-none border border-[#dfe7e3] bg-[#fbfcfa] shadow-none">
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
-                      <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                      <tr className="border-b border-[#dfe7e3] bg-[#f1f4f0] text-[11px] font-semibold uppercase tracking-wider text-[#567079]">
                         <th className="px-4 py-3">Exception Type</th>
                         <th className="px-4 py-3">Expected Net</th>
                         <th className="px-4 py-3">Actual Amount</th>
@@ -1375,7 +1375,7 @@ export const FinanceMissionView: React.FC = () => {
                         <th className="px-4 py-3">Investigation & Explanation</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-[#dfe7e3]">
                       {exceptions.map((ex) => {
                         const isExpanded = expandedExceptionId === ex.id;
                         const isExplaining = explainingExceptionId === ex.id;
@@ -1390,25 +1390,25 @@ export const FinanceMissionView: React.FC = () => {
                           <React.Fragment key={ex.id}>
                             <tr
                               ref={(el) => { exceptionRowRefs.current[ex.id] = el; }}
-                              style={isHighlighted ? { outline: "2px solid #6366f1", outlineOffset: "-2px", background: "#eef2ff" } : {}}
-                              className="hover:bg-slate-50/60 transition-colors"
+                              style={isHighlighted ? { outline: "2px solid #c99548", outlineOffset: "-2px", background: "#fff8eb" } : {}}
+                              className="hover:bg-[#f1f4f0] transition-colors"
                             >
                               <td className="px-4 py-3">
-                                <span className={`exception-badge ${ex.exception_type}`}>
+                                <span className={`exception-badge ${ex.exception_type} !rounded-none !bg-[#fff8eb] !text-[#8a642b] !border-[#e8d6b5]`}>
                                   {friendlyLabel(ex.exception_type)}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 font-semibold text-slate-900 font-mono">
+                              <td className="px-4 py-3 font-semibold text-[#18324b] font-mono">
                                 ₹{Number(ex.expected_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                               </td>
-                              <td className="px-4 py-3 font-semibold text-slate-900 font-mono">
+                              <td className="px-4 py-3 font-semibold text-[#18324b] font-mono">
                                 ₹{Number(ex.actual_amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                               </td>
-                              <td className="px-4 py-3 font-bold text-rose-600 font-mono">
+                              <td className="px-4 py-3 font-bold text-[#b04b43] font-mono">
                                 ₹{Number(ex.difference).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                               </td>
                               <td className="px-4 py-3">
-                                <span className={`status-badge-sm ${ex.status}`}>
+                                <span className={`status-badge-sm ${ex.status} !rounded-none !border !border-[#dfe7e3] ${ex.status === "explained" || ex.status === "resolved" ? "!bg-[#eef3ef] !text-[#29745d]" : ex.status === "requires_human_review" ? "!bg-[#fff8eb] !text-[#8a642b]" : "!bg-[#eef3ef] !text-[#18324b]"}`}>
                                   {friendlyLabel(ex.status)}
                                 </span>
                               </td>
@@ -1418,11 +1418,11 @@ export const FinanceMissionView: React.FC = () => {
                                   onClick={() => handleExplainDifference(ex.id)}
                                   disabled={isExplaining}
                                   title="Chains plain retrieval, LLM investigation, and LLM judgment"
-                                  className="btn-primary"
+                                  className="btn-primary !rounded-none !bg-[#18324b] !border-[#18324b] hover:!bg-[#2e5962] hover:!border-[#2e5962] !shadow-none"
                                 >
                                   {isExplaining ? (
                                     <>
-                                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900" />
+                                      <div className="h-3.5 w-3.5 animate-spin rounded-none border-2 border-[#dfe7e3] border-t-[#18324b]" />
                                       <span>Investigating...</span>
                                     </>
                                   ) : (
@@ -1434,7 +1434,7 @@ export const FinanceMissionView: React.FC = () => {
 
                                   <button
                                     onClick={() => setExpandedExceptionId(isExpanded ? null : ex.id)}
-                                    className="h-9 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+                                    className="h-9 px-3 bg-[#eef3ef] hover:bg-[#dfe7e3] text-[#18324b] text-xs font-medium rounded-none transition-colors flex items-center gap-1.5"
                                   >
                                     <span>{isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</span>
                                     <span>{isExpanded ? "Hide Details" : "View Order Details"}</span>
@@ -1446,17 +1446,17 @@ export const FinanceMissionView: React.FC = () => {
                             {/* EXPANDED ROW: Linked Events and/or Rich Judgment Card */}
                             {isExpanded && (
                               <tr>
-                                <td colSpan={6} className="p-0 bg-slate-50/50">
-                                  <div className="p-4 bg-slate-50 border-y border-slate-200">
+                                <td colSpan={6} className="p-0 bg-[#f1f4f0]">
+                                  <div className="p-4 bg-[#f1f4f0] border-y border-[#dfe7e3]">
                                     {/* Linked Events Subtable */}
                                     <div className="mb-4">
                                       <h5 className="inline-events-title">
                                         {ex.exception_type === "ambiguous_bank_credit" ? "Candidate Events" : "Linked Chain Events"} ({ex.normalized_event_ids?.length || 0})
                                       </h5>
-                                      <div className="w-full overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-xs">
+                                      <div className="w-full overflow-x-auto rounded-none border border-[#dfe7e3] bg-[#fbfcfa] shadow-none">
                                         <table className="w-full text-left border-collapse text-xs">
                                           <thead>
-                                            <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                            <tr className="border-b border-[#dfe7e3] bg-[#f1f4f0] text-[11px] font-semibold uppercase tracking-wider text-[#567079]">
                                               <th className="px-3 py-2">Event Type</th>
                                               <th className="px-3 py-2">Source</th>
                                               <th className="px-3 py-2">Ref</th>
@@ -1465,26 +1465,26 @@ export const FinanceMissionView: React.FC = () => {
                                               <th className="px-3 py-2">Counterparty</th>
                                             </tr>
                                           </thead>
-                                          <tbody className="divide-y divide-slate-100">
+                                          <tbody className="divide-y divide-[#dfe7e3]">
                                             {(ex.normalized_event_ids || []).map((id) => {
                                               const evt = eventMap.get(id);
                                               if (!evt) return null;
                                               return (
-                                                <tr key={evt.id} className="hover:bg-slate-50/60 transition-colors">
+                                                <tr key={evt.id} className="hover:bg-[#f1f4f0] transition-colors">
                                                   <td className="px-3 py-2">
-                                                    <span className={`event-badge ${evt.event_type}`}>
+                                                    <span className={`event-badge ${evt.event_type} !rounded-none !bg-[#eef3ef] !text-[#18324b] !border-[#dfe7e3]`}>
                                                       {evt.event_type}
                                                     </span>
                                                   </td>
-                                                  <td className="px-3 py-2 capitalize font-medium text-slate-700">{evt.source_system}</td>
+                                                  <td className="px-3 py-2 capitalize font-medium text-[#18324b]">{evt.source_system}</td>
                                                   <td className="px-3 py-2">
                                                     <code className="ref-code">{evt.external_ref || "—"}</code>
                                                   </td>
-                                                  <td className="px-3 py-2 font-semibold text-slate-900 font-mono">
+                                                  <td className="px-3 py-2 font-semibold text-[#18324b] font-mono">
                                                     ₹{Number(evt.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                                                   </td>
-                                                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{evt.event_date}</td>
-                                                  <td className="px-3 py-2 text-slate-700">{evt.counterparty || "—"}</td>
+                                                  <td className="px-3 py-2 text-[#567079] whitespace-nowrap">{evt.event_date}</td>
+                                                  <td className="px-3 py-2 text-[#18324b]">{evt.counterparty || "—"}</td>
                                                 </tr>
                                               );
                                             })}
@@ -1495,13 +1495,13 @@ export const FinanceMissionView: React.FC = () => {
 
                                     {/* Budget Reached / Human Review Banner */}
                                     {(hitBudget || isHumanReview) && (
-                                      <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-amber-800">
+                                      <div className="flex items-start gap-3 bg-[#fff8eb] border border-[#e8d6b5] rounded-none px-4 py-3 mb-4 text-[#8a642b]">
                                         <ShieldAlert size={18} className="shrink-0 mt-0.5" />
                                         <div>
                                           <strong className="text-sm font-semibold">
                                             {isHumanReview ? "Escalated for Human Review" : "Investigation Budget Reached"}
                                           </strong>
-                                          <p className="text-xs mt-0.5 text-amber-700">
+                                          <p className="text-xs mt-0.5 text-[#8a642b]">
                                             {isHumanReview
                                               ? "The agent determined evidence was insufficient to classify this exception confidently. A human analyst should review it."
                                               : "The agent exhausted its 6-step investigation budget. The best available answer was committed, but confidence may be lower than usual."}
@@ -1527,7 +1527,7 @@ export const FinanceMissionView: React.FC = () => {
                                             <span className={"font-bold"}>
                                               {friendlyLabel(latestJudgment.classification)}
                                             </span>
-                                            <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                            <span className="text-xs font-medium text-[#567079] bg-[#eef3ef] px-2 py-0.5 rounded-none">
                                               {latestJudgment.confidence}% confidence
                                             </span>
                                           </div>
@@ -1588,16 +1588,16 @@ export const FinanceMissionView: React.FC = () => {
 
             {/* SETTLEMENT Q&A PANEL */}
             {exceptions.length > 0 && (
-              <div className="mt-8 rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/40 to-slate-50 overflow-hidden shadow-sm">
+              <div className="mt-8 rounded-none border border-[#dfe7e3] bg-[#f1f4f0] overflow-hidden shadow-none">
                 {/* Panel header */}
-                <div className="px-5 pt-5 pb-4 border-b border-indigo-100">
+                <div className="px-5 pt-5 pb-4 border-b border-[#dfe7e3]">
                   <div className="flex items-center gap-2.5 mb-1">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-sm">
+                    <div className="w-8 h-8 rounded-none bg-[#18324b] flex items-center justify-center shadow-none">
                       <Bot size={16} className="text-white" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-slate-800">Settlement Q&amp;A</h4>
-                      <p className="text-xs text-slate-500">
+                      <h4 className="text-sm font-bold text-[#18324b]">Settlement Q&amp;A</h4>
+                      <p className="text-xs text-[#567079]">
                         Ask anything about this mission — the agent uses its tools to answer and shows its reasoning.
                       </p>
                     </div>
@@ -1608,11 +1608,11 @@ export const FinanceMissionView: React.FC = () => {
                 <div className="px-5 py-4 space-y-4 max-h-[480px] overflow-y-auto">
                   {qaMessages.length === 0 && (
                     <div className="py-8 text-center">
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center mx-auto mb-3">
-                        <MessageSquare size={22} className="text-indigo-400" />
+                      <div className="w-12 h-12 rounded-none bg-[#eef3ef] flex items-center justify-center mx-auto mb-3">
+                        <MessageSquare size={22} className="text-[#5d7b82]" />
                       </div>
-                      <p className="text-sm font-semibold text-slate-600 mb-1">Ask about this mission</p>
-                      <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                      <p className="text-sm font-semibold text-[#567079] mb-1">Ask about this mission</p>
+                      <p className="text-xs text-[#567079] max-w-xs mx-auto">
                         Try: "What needs my attention?", "How much is unresolved?", or "Why did Razorpay settle less than expected?"
                       </p>
                     </div>
@@ -1621,26 +1621,26 @@ export const FinanceMissionView: React.FC = () => {
                   {qaMessages.map((msg, i) => (
                     <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
                       {/* Avatar */}
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                      <div className={`w-7 h-7 rounded-none flex items-center justify-center shrink-0 ${
                         msg.role === "user"
-                          ? "bg-slate-800 text-white"
-                          : "bg-indigo-600 text-white"
+                          ? "bg-[#18324b] text-white"
+                          : "bg-[#18324b] text-white"
                       }`}>
                         {msg.role === "user" ? <User size={13} /> : <Bot size={13} />}
                       </div>
 
                       {/* Bubble */}
-                      <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                      <div className={`max-w-[80%] rounded-none px-4 py-3 text-sm shadow-none ${
                         msg.role === "user"
-                          ? "bg-slate-800 text-white rounded-tr-sm"
-                          : "bg-white border border-slate-200 text-slate-800 rounded-tl-sm"
+                          ? "bg-[#18324b] text-white rounded-none"
+                          : "bg-[#fbfcfa] border border-[#dfe7e3] text-[#18324b] rounded-none"
                       }`}>
                         {msg.isLoading ? (
                           <div className="flex items-center gap-1.5 py-1">
                             {[0, 1, 2].map((d) => (
                               <div
                                 key={d}
-                                className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce"
+                                className="w-1.5 h-1.5 rounded-none bg-[#5d7b82] animate-bounce"
                                 style={{ animationDelay: `${d * 0.15}s` }}
                               />
                             ))}
@@ -1649,7 +1649,7 @@ export const FinanceMissionView: React.FC = () => {
                           <>
                             {/* Out-of-scope banner */}
                             {msg.couldNotAnswer && (
-                              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+                              <div className="flex items-center gap-2 text-xs text-[#8a642b] bg-[#fff8eb] border border-[#e8d6b5] rounded-none px-3 py-2 mb-2">
                                 <AlertCircle size={13} className="shrink-0" />
                                 <span>Out of scope — I can only answer questions about this mission's reconciliation data.</span>
                               </div>
@@ -1659,13 +1659,13 @@ export const FinanceMissionView: React.FC = () => {
 
                             {/* Cited exception chips */}
                             {msg.citedExceptionIds && msg.citedExceptionIds.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2.5 border-t border-slate-100">
-                                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Exceptions:</span>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2.5 border-t border-[#dfe7e3]">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-[#567079]">Exceptions:</span>
                                 {msg.citedExceptionIds.map((id) => (
                                   <button
                                     key={id}
                                     onClick={() => scrollToException(id)}
-                                    className="text-[11px] font-mono font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-full px-2.5 py-0.5 transition-colors cursor-pointer"
+                                    className="text-[11px] font-mono font-semibold text-[#18324b] bg-[#eef3ef] hover:bg-[#eef3ef] border border-[#dfe7e3] rounded-none px-2.5 py-0.5 transition-colors cursor-pointer"
                                     title="Click to scroll to this exception"
                                   >
                                     #{id.slice(0, 8)}
@@ -1676,10 +1676,10 @@ export const FinanceMissionView: React.FC = () => {
 
                             {/* Cited evidence chips */}
                             {msg.citedEvidenceIds && msg.citedEvidenceIds.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-slate-100">
-                                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Evidence:</span>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-[#dfe7e3]">
+                                <span className="text-[10px] font-semibold uppercase tracking-wide text-[#567079]">Evidence:</span>
                                 {msg.citedEvidenceIds.map((ref) => (
-                                  <span key={ref} className="text-[11px] font-mono font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
+                                  <span key={ref} className="text-[11px] font-mono font-semibold text-[#29745d] bg-[#eef3ef] border border-[#dfe7e3] rounded-none px-2.5 py-0.5">
                                     {ref}
                                   </span>
                                 ))}
@@ -1697,7 +1697,7 @@ export const FinanceMissionView: React.FC = () => {
 
                             {/* Budget banner */}
                             {msg.hitStepBudget && !msg.couldNotAnswer && (
-                              <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                              <div className="flex items-center gap-2 text-xs text-[#8a642b] bg-[#fff8eb] border border-[#e8d6b5] rounded-none px-3 py-2 mt-2">
                                 <ShieldAlert size={13} className="shrink-0" />
                                 <span>Investigation budget reached — answer may be incomplete.</span>
                               </div>
@@ -1710,7 +1710,7 @@ export const FinanceMissionView: React.FC = () => {
 
                   {/* Error */}
                   {qaError && (
-                    <div className="flex items-center gap-2 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-2 text-xs text-[#b04b43] bg-[#fff1ef] border border-[#efd2cf] rounded-none px-4 py-3">
                       <AlertCircle size={14} className="shrink-0" />
                       <span>{qaError}</span>
                     </div>
@@ -1720,7 +1720,7 @@ export const FinanceMissionView: React.FC = () => {
                 </div>
 
                 {/* Input row */}
-                <div className="px-5 pb-5 pt-3 border-t border-indigo-100 flex gap-2">
+                <div className="px-5 pb-5 pt-3 border-t border-[#dfe7e3] flex gap-2">
                   <input
                     type="text"
                     id="qa-question-input"
@@ -1729,17 +1729,17 @@ export const FinanceMissionView: React.FC = () => {
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAskQuestion(); } }}
                     placeholder="Ask about this mission's reconciliation..."
                     disabled={qaSending}
-                    className="flex-1 text-sm bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent disabled:opacity-60 transition-all"
+                    className="flex-1 text-sm bg-[#fbfcfa] border border-[#dfe7e3] rounded-none px-4 py-2.5 text-[#18324b] placeholder:text-[#567079] focus:outline-none focus:ring-2 focus:ring-[#c99548] focus:border-transparent disabled:opacity-60 transition-all"
                   />
                   <button
                     onClick={handleAskQuestion}
                     disabled={qaSending || !qaInput.trim()}
                     id="qa-send-button"
                     aria-label="Send question"
-                    className="w-10 h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shadow-sm shrink-0"
+                    className="w-10 h-10 rounded-none bg-[#18324b] hover:bg-[#2e5962] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shadow-none shrink-0"
                   >
                     {qaSending ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-[#fbfcfa] border-t-transparent rounded-none animate-spin" />
                     ) : (
                       <Send size={16} />
                     )}
@@ -1767,25 +1767,25 @@ export const FinanceMissionView: React.FC = () => {
               </div>
               <div className="metric-cell">
                 <span className="metric-label">Sales (Shopify)</span>
-                <span className="metric-value text-emerald">
+                <span className="metric-value text-[#29745d]">
                   {events.filter((e) => e.event_type === "SALE").length}
                 </span>
               </div>
               <div className="metric-cell">
                 <span className="metric-label">Payments (Razorpay)</span>
-                <span className="metric-value text-indigo">
+                <span className="metric-value text-[#18324b]">
                   {events.filter((e) => e.event_type === "PAYMENT").length}
                 </span>
               </div>
               <div className="metric-cell">
                 <span className="metric-label">COD Remittances</span>
-                <span className="metric-value text-blue-600">
+                <span className="metric-value text-[#2e5962]">
                   {events.filter((e) => e.event_type === "COD_REMITTANCE").length}
                 </span>
               </div>
               <div className="metric-cell">
                 <span className="metric-label">Bank Entries</span>
-                <span className="metric-value text-amber">
+                <span className="metric-value text-[#c99548]">
                   {events.filter((e) => e.event_type === "BANK_TRANSACTION").length}
                 </span>
               </div>
@@ -1844,10 +1844,10 @@ export const FinanceMissionView: React.FC = () => {
             </div>
 
             {/* Events Data Table */}
-            <div className="w-full overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-xs">
+            <div className="w-full overflow-x-auto rounded-none border border-[#dfe7e3] bg-[#fbfcfa] shadow-none">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-slate-200/80 bg-slate-50/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                  <tr className="border-b border-[#dfe7e3] bg-[#f1f4f0] text-[11px] font-semibold uppercase tracking-wider text-[#567079]">
                     <th className="px-4 py-3">Event Type</th>
                     <th className="px-4 py-3">Source</th>
                     <th className="px-4 py-3">External / Batch Ref</th>
@@ -1857,10 +1857,10 @@ export const FinanceMissionView: React.FC = () => {
                     <th className="px-4 py-3 text-center" title="Cross-source link to core.orders / core.payments / core.customers">Linked?</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#dfe7e3]">
                   {filteredEvents.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-sm text-slate-400">
+                      <td colSpan={7} className="px-4 py-12 text-center text-sm text-[#567079]">
                         {events.length === 0
                           ? "No normalized events yet. Complete Step 3 above to extract and normalize."
                           : "No events match the selected filters."}
@@ -1870,7 +1870,7 @@ export const FinanceMissionView: React.FC = () => {
                     filteredEvents.map((evt) => {
                       const isLinked = !!(evt.order_id || evt.payment_id || evt.customer_id);
                       return (
-                        <tr key={evt.id} className="hover:bg-slate-50/60 transition-colors">
+                        <tr key={evt.id} className="hover:bg-[#f1f4f0] transition-colors">
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1 items-start">
                               <span className={`event-badge ${evt.event_type}`}>
@@ -1883,7 +1883,7 @@ export const FinanceMissionView: React.FC = () => {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 font-medium text-slate-700 capitalize">
+                          <td className="px-4 py-3 font-medium text-[#18324b] capitalize">
                             <span className="source-tag">{evt.source_system}</span>
                           </td>
                           <td className="px-4 py-3">
@@ -1901,11 +1901,11 @@ export const FinanceMissionView: React.FC = () => {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 font-semibold text-slate-900 font-mono">
+                          <td className="px-4 py-3 font-semibold text-[#18324b] font-mono">
                             ₹{Number(evt.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{evt.event_date}</td>
-                          <td className="px-4 py-3 text-slate-700 max-w-[220px] truncate" title={evt.counterparty || ""}>
+                          <td className="px-4 py-3 text-[#567079] whitespace-nowrap">{evt.event_date}</td>
+                          <td className="px-4 py-3 text-[#18324b] max-w-[220px] truncate" title={evt.counterparty || ""}>
                             {evt.counterparty || "—"}
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -1930,23 +1930,23 @@ export const FinanceMissionView: React.FC = () => {
 
       {/* CREATE MISSION MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#18324b]/50 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-[#fbfcfa] rounded-none shadow-none max-w-lg w-full p-6 relative">
+            <div className="flex items-center justify-between pb-4 border-b border-[#dfe7e3] dark:border-[#dfe7e3] mb-4">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Initialize Financial Mission</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Specify date range and sources to reconcile</p>
+                <h3 className="text-lg font-bold text-[#18324b]">Initialize Financial Mission</h3>
+                <p className="text-xs text-[#567079] mt-0.5">Specify date range and sources to reconcile</p>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="text-[#567079] hover:text-[#567079] dark:hover:text-[#18324b] p-1 rounded-none hover:bg-[#eef3ef] dark:hover:bg-[#18324b]"
               >
                 <X size={18} />
               </button>
             </div>
 
             {missionError && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
+              <div className="mb-4 p-3 rounded-none bg-[#fff1ef] border border-[#efd2cf] text-[#b04b43] text-xs flex items-center gap-2">
                 <AlertCircle size={16} />
                 <span>{missionError}</span>
               </div>
@@ -1955,29 +1955,29 @@ export const FinanceMissionView: React.FC = () => {
             <form onSubmit={handleCreateMission} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Period Start</label>
+                  <label className="block text-xs font-semibold text-[#18324b] dark:text-[#b4c2bd] mb-1">Period Start</label>
                   <input
                     type="date"
                     value={periodStart}
                     onChange={(e) => setPeriodStart(e.target.value)}
                     required
-                    className="w-full px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-1.5 text-sm bg-[#fbfcfa] border border-[#dfe7e3] rounded-none text-[#18324b] focus:outline-none focus:ring-2 focus:ring-[#18324b]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Period End</label>
+                  <label className="block text-xs font-semibold text-[#18324b] mb-1">Period End</label>
                   <input
                     type="date"
                     value={periodEnd}
                     onChange={(e) => setPeriodEnd(e.target.value)}
                     required
-                    className="w-full px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full px-3 py-1.5 text-sm bg-[#fbfcfa] border border-[#dfe7e3] rounded-none text-[#18324b] focus:outline-none focus:ring-2 focus:ring-[#18324b]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Reconciliation Sources</label>
+                <label className="block text-xs font-semibold text-[#18324b] mb-1.5">Reconciliation Sources</label>
                 <div className="space-y-3">
                   {[
                     { id: "shopify", label: "Shopify Orders (Sales & Refunds)" },
@@ -1986,12 +1986,12 @@ export const FinanceMissionView: React.FC = () => {
                     { id: "generic_cod", label: "COD Courier Settlements (Delhivery, Shiprocket, Generic COD)" },
                     { id: "bank", label: "HDFC Bank Statement (Settlement Credits)" },
                   ].map((src) => (
-                    <label key={src.id} className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer select-none">
+                    <label key={src.id} className="flex items-center gap-2.5 text-xs text-[#18324b] cursor-pointer select-none">
                       <input
                         type="checkbox"
                         checked={selectedSources.includes(src.id)}
                         onChange={() => toggleSource(src.id)}
-                        className="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                        className="rounded-none border-[#dfe7e3] text-[#18324b] focus:ring-[#18324b]"
                       />
                       <span>{src.label}</span>
                     </label>
@@ -2000,31 +2000,31 @@ export const FinanceMissionView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Mission Goal / Objective</label>
+                <label className="block text-xs font-semibold text-[#18324b] mb-1">Mission Goal / Objective</label>
                 <input
                   type="text"
                   placeholder="e.g. Reconcile August sales against Razorpay payouts"
                   value={objective}
                   onChange={(e) => setObjective(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm bg-white border border-slate-200  rounded-lg text-slate-900  placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full px-3 py-1.5 text-sm bg-[#fbfcfa] border border-[#dfe7e3]  rounded-none text-[#18324b]  placeholder:text-[#567079] focus:outline-none focus:ring-2 focus:ring-[#18324b]"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 mt-4">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#dfe7e3] mt-4">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-3.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="px-3.5 py-1.5 text-xs font-medium text-[#567079] hover:bg-[#eef3ef] rounded-none transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creatingMission}
-                  className="px-4 py-1.5 text-xs font-medium text-white bg-slate-900 dark:bg-slate-100 dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white rounded-lg shadow-sm flex items-center gap-1.5 disabled:opacity-50 transition-all"
+                  className="px-4 py-1.5 text-xs font-medium text-white bg-[#18324b] hover:bg-[#2e5962] rounded-none shadow-none flex items-center gap-1.5 disabled:opacity-50 transition-all"
                 >
                   {creatingMission ? (
-                    <div className="w-3.5 h-3.5 border-2 border-white dark:border-slate-900 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-[#fbfcfa] border-t-transparent rounded-none animate-spin" />
                   ) : (
                     <>
                       <span>Create Mission</span>

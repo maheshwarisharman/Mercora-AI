@@ -1949,6 +1949,12 @@ body {
   animation: summary-rise 0.45s ease both;
 }
 
+/* The loading state should fill the workspace while the report is assembling. */
+.summary-skeleton-shell {
+  width: 100%;
+  max-width: none;
+}
+
 @keyframes summary-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
 .summary-header { border-bottom: 1px solid var(--summary-line); padding: 3px 3px 22px; }

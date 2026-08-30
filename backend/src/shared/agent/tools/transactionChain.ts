@@ -1,6 +1,13 @@
 import { getServiceSupabase } from "../../../shared/db/supabase";
 import type { ToolDefinition } from "../../llm/types";
 
+// `.or()` takes a raw PostgREST filter expression, so values containing
+// delimiters must be quoted and escaped before being interpolated.
+function postgrestFilterValue(value: string): string {
+  if (!/[,()"\\]/.test(value) && value === value.trim()) return value;
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 export const getTransactionChainDefinition: ToolDefinition = {
   name: "get_transaction_chain",
   description:
@@ -30,6 +37,8 @@ export async function getTransactionChain(args: Record<string, unknown>): Promis
   if (!orderRef) return { error: "order_ref is required" };
 
   const supabase = getServiceSupabase();
+  const orderRefFilterValue = postgrestFilterValue(orderRef);
+  const orderRefSearchValue = postgrestFilterValue(`%${orderRef}%`);
 
   // Find normalized events matching the order ref in external_ref or metadata
   const { data: events, error: evErr } = await supabase
@@ -37,7 +46,9 @@ export async function getTransactionChain(args: Record<string, unknown>): Promis
     .from("normalized_events")
     .select("*")
     .or(
-      `external_ref.ilike.%${orderRef}%,metadata->order_ref.eq.${orderRef},metadata->order_number.eq.${orderRef}`
+      // Use ->> here: -> returns jsonb, causing PostgreSQL to parse values
+      // such as "#MRC-24015" as JSON and fail with invalid input syntax.
+      `external_ref.ilike.${orderRefSearchValue},metadata->>order_ref.eq.${orderRefFilterValue},metadata->>order_number.eq.${orderRefFilterValue}`
     )
     .order("event_date", { ascending: true });
 
