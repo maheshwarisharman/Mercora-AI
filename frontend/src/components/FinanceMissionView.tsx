@@ -21,6 +21,13 @@ import {
   MessageSquare,
   Bot,
   User,
+  ShoppingBag,
+  CreditCard,
+  Package,
+  Coins,
+  Truck,
+  Landmark,
+  Receipt,
 } from "lucide-react";
 import { ReasoningTrace, type AgentTraceStep } from "./ReasoningTrace";
 import { MissionSummary } from "../pages/MissionSummary";
@@ -138,6 +145,30 @@ const FRIENDLY_LABELS: Record<string, string> = {
 
 function friendlyLabel(value: string): string {
   return FRIENDLY_LABELS[value.toUpperCase()] || value.replace(/_/g, " ");
+}
+
+function renderSourceDocIcon(source: string, size: number = 20) {
+  switch (source) {
+    case "shopify_orders":
+      return <ShoppingBag size={size} style={{ color: "#059669" }} className="flex-shrink-0" title="Shopify Orders" />;
+    case "razorpay_settlement":
+      return <CreditCard size={size} style={{ color: "#0284c7" }} className="flex-shrink-0" title="Razorpay Settlement" />;
+    case "amazon_settlement":
+      return <Package size={size} style={{ color: "#d97706" }} className="flex-shrink-0" title="Amazon Settlement" />;
+    case "generic_cod":
+      return <Coins size={size} style={{ color: "#7c3aed" }} className="flex-shrink-0" title="Generic COD" />;
+    case "courier_settlement":
+      return <Truck size={size} style={{ color: "#0891b2" }} className="flex-shrink-0" title="Courier Settlement" />;
+    case "bank_statement":
+      return <Landmark size={size} style={{ color: "#1d4ed8" }} className="flex-shrink-0" title="Bank Statement" />;
+    case "vendor_invoice":
+      return <Receipt size={size} style={{ color: "#e11d48" }} className="flex-shrink-0" title="Vendor Invoice" />;
+    case "support_export":
+      return <FileText size={size} style={{ color: "#6366f1" }} className="flex-shrink-0" title="Support Export" />;
+    case "unknown":
+    default:
+      return <FileSpreadsheet size={size} style={{ color: "#64748b" }} className="flex-shrink-0" title="Spreadsheet / Unknown Document" />;
+  }
 }
 
 function chainLegLabel(eventType: string): string {
@@ -1056,7 +1087,7 @@ export const FinanceMissionView: React.FC = () => {
                   {documents.map((doc) => (
                     <div key={doc.id} className="doc-card">
                       <div className="doc-card-top">
-                        <FileSpreadsheet size={20} className="text-[#18324b]" />
+                        {renderSourceDocIcon(doc.detected_source, 20)}
                         <span className="doc-filename truncate">{doc.original_filename}</span>
                       </div>
 
