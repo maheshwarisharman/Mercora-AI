@@ -688,7 +688,7 @@ body {
   justify-content: center;
   gap: 8px;
 
-  height: 36px;
+  height:41px;
   padding: 0 14px;
 
   background: #18181b;
@@ -712,7 +712,6 @@ body {
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 
-  margin-top: 4px;
 }
 
 .btn-primary:hover {
@@ -1068,8 +1067,8 @@ body {
   font-size: 0.675rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--accent-primary);
-  background: rgba(79, 70, 229, 0.08);
+  color: white;
+  background: #18324b;
   border: 1px solid rgba(79, 70, 229, 0.15);
   padding: 2px 8px;
   border-radius: 4px;

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { ReasoningTrace, type AgentTraceStep } from "./ReasoningTrace";
 import { MissionSummary } from "../pages/MissionSummary";
+import { ModernDatePicker } from "./ModernDatePicker";
 
 interface FinanceMission {
   id: string;
@@ -150,24 +151,24 @@ function friendlyLabel(value: string): string {
 function renderSourceDocIcon(source: string, size: number = 20) {
   switch (source) {
     case "shopify_orders":
-      return <ShoppingBag size={size} style={{ color: "#059669" }} className="flex-shrink-0" title="Shopify Orders" />;
+      return <span title="Shopify Orders" className="inline-flex"><ShoppingBag size={size} style={{ color: "#059669" }} className="flex-shrink-0" /></span>;
     case "razorpay_settlement":
-      return <CreditCard size={size} style={{ color: "#0284c7" }} className="flex-shrink-0" title="Razorpay Settlement" />;
+      return <span title="Razorpay Settlement" className="inline-flex"><CreditCard size={size} style={{ color: "#0284c7" }} className="flex-shrink-0" /></span>;
     case "amazon_settlement":
-      return <Package size={size} style={{ color: "#d97706" }} className="flex-shrink-0" title="Amazon Settlement" />;
+      return <span title="Amazon Settlement" className="inline-flex"><Package size={size} style={{ color: "#d97706" }} className="flex-shrink-0" /></span>;
     case "generic_cod":
-      return <Coins size={size} style={{ color: "#7c3aed" }} className="flex-shrink-0" title="Generic COD" />;
+      return <span title="Generic COD" className="inline-flex"><Coins size={size} style={{ color: "#7c3aed" }} className="flex-shrink-0" /></span>;
     case "courier_settlement":
-      return <Truck size={size} style={{ color: "#0891b2" }} className="flex-shrink-0" title="Courier Settlement" />;
+      return <span title="Courier Settlement" className="inline-flex"><Truck size={size} style={{ color: "#0891b2" }} className="flex-shrink-0" /></span>;
     case "bank_statement":
-      return <Landmark size={size} style={{ color: "#1d4ed8" }} className="flex-shrink-0" title="Bank Statement" />;
+      return <span title="Bank Statement" className="inline-flex"><Landmark size={size} style={{ color: "#1d4ed8" }} className="flex-shrink-0" /></span>;
     case "vendor_invoice":
-      return <Receipt size={size} style={{ color: "#e11d48" }} className="flex-shrink-0" title="Vendor Invoice" />;
+      return <span title="Vendor Invoice" className="inline-flex"><Receipt size={size} style={{ color: "#e11d48" }} className="flex-shrink-0" /></span>;
     case "support_export":
-      return <FileText size={size} style={{ color: "#6366f1" }} className="flex-shrink-0" title="Support Export" />;
+      return <span title="Support Export" className="inline-flex"><FileText size={size} style={{ color: "#6366f1" }} className="flex-shrink-0" /></span>;
     case "unknown":
     default:
-      return <FileSpreadsheet size={size} style={{ color: "#64748b" }} className="flex-shrink-0" title="Spreadsheet / Unknown Document" />;
+      return <span title="Spreadsheet / Unknown Document" className="inline-flex"><FileSpreadsheet size={size} style={{ color: "#64748b" }} className="flex-shrink-0" /></span>;
   }
 }
 
@@ -817,7 +818,7 @@ export const FinanceMissionView: React.FC = () => {
                   onClick={() => setShowSummary(true)}
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-none text-sm font-medium text-[#18324b] bg-[#fbfcfa] hover:bg-[#f1f4f0] transition-colors border border-[#dfe7e3] shadow-none cursor-pointer"
                 >
-                  <ShieldAlert size={16} />
+                  <FileText size={16} />
                   <span>View summary</span>
                 </button>
               )}
@@ -1038,7 +1039,6 @@ export const FinanceMissionView: React.FC = () => {
           {/* STEP 2: Document Upload & Classification */}
           <section className="finance-step-card">
             <div className="step-badge-row">
-              <span className="step-num">Step 2</span>
               <h2 className="step-heading">Source Documents & Heuristic Understanding</h2>
             </div>
             <p className="step-description">
@@ -1127,7 +1127,6 @@ export const FinanceMissionView: React.FC = () => {
           {/* STEP 3: Extraction & Normalization Action */}
           <section className="finance-step-card">
             <div className="step-badge-row">
-              <span className="step-num">Step 3</span>
               <h2 className="step-heading">Extract & Normalize Canonical Events</h2>
             </div>
             <p className="step-description">
@@ -1188,7 +1187,6 @@ export const FinanceMissionView: React.FC = () => {
           {/* STEP 4: Reconciliation & Exception Detection */}
           <section className="finance-step-card">
             <div className="step-badge-row">
-              <span className="step-num">Step 4</span>
               <h2 className="step-heading">Reconciliation & Exception Detection</h2>
             </div>
             <p className="step-description">
@@ -1985,26 +1983,22 @@ export const FinanceMissionView: React.FC = () => {
 
             <form onSubmit={handleCreateMission} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-[#18324b] mb-1">Period Start</label>
-                  <input
-                    type="date"
-                    value={periodStart}
-                    onChange={(e) => setPeriodStart(e.target.value)}
-                    required
-                    className="w-full px-3 py-1.5 text-sm bg-[#fbfcfa] border border-[#dfe7e3] rounded-none text-[#18324b] focus:outline-none focus:ring-2 focus:ring-[#18324b]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-[#18324b] mb-1">Period End</label>
-                  <input
-                    type="date"
-                    value={periodEnd}
-                    onChange={(e) => setPeriodEnd(e.target.value)}
-                    required
-                    className="w-full px-3 py-1.5 text-sm bg-[#fbfcfa] border border-[#dfe7e3] rounded-none text-[#18324b] focus:outline-none focus:ring-2 focus:ring-[#18324b]"
-                  />
-                </div>
+                <ModernDatePicker
+                  label="Period Start"
+                  value={periodStart}
+                  onChange={setPeriodStart}
+                  required
+                  placeholder="Select start date"
+                  align="left"
+                />
+                <ModernDatePicker
+                  label="Period End"
+                  value={periodEnd}
+                  onChange={setPeriodEnd}
+                  required
+                  placeholder="Select end date"
+                  align="right"
+                />
               </div>
 
               <div>
@@ -2055,10 +2049,10 @@ export const FinanceMissionView: React.FC = () => {
                   className="px-4 py-1.5 text-xs font-medium text-white bg-[#18324b] hover:bg-[#2e5962] rounded-none shadow-none flex items-center gap-1.5 disabled:opacity-50 transition-all"
                 >
                   {creatingMission ? (
-                    <div className="w-3.5 h-3.5 border-2 border-[#fbfcfa] border-t-transparent rounded-none animate-spin" />
+                    <div className="w-3.5 h-3.5 border-2 border-[#fbfcfa] border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <>
-                      <span>Create Mission</span>
+                      <span className="p-0.5 text-sm">Create Mission</span>
                       <ArrowRight size={14} />
                     </>
                   )}
