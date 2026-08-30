@@ -1932,14 +1932,14 @@ export const FinanceMissionView: React.FC = () => {
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#18324b]/50 backdrop-blur-sm animate-fadeIn">
           <div className="bg-[#fbfcfa] rounded-none shadow-none max-w-lg w-full p-6 relative">
-            <div className="flex items-center justify-between pb-4 border-b border-[#dfe7e3] dark:border-[#dfe7e3] mb-4">
+            <div className="flex items-center justify-between pb-4 border-b border-[#dfe7e3] mb-4">
               <div>
                 <h3 className="text-lg font-bold text-[#18324b]">Initialize Financial Mission</h3>
                 <p className="text-xs text-[#567079] mt-0.5">Specify date range and sources to reconcile</p>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-[#567079] hover:text-[#567079] dark:hover:text-[#18324b] p-1 rounded-none hover:bg-[#eef3ef] dark:hover:bg-[#18324b]"
+                className="text-[#567079] hover:text-[#18324b] p-1 rounded-none hover:bg-[#eef3ef]"
               >
                 <X size={18} />
               </button>
@@ -1955,7 +1955,7 @@ export const FinanceMissionView: React.FC = () => {
             <form onSubmit={handleCreateMission} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-[#18324b] dark:text-[#b4c2bd] mb-1">Period Start</label>
+                  <label className="block text-xs font-semibold text-[#18324b] mb-1">Period Start</label>
                   <input
                     type="date"
                     value={periodStart}
