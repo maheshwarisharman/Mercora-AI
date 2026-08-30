@@ -1088,7 +1088,7 @@ export const FinanceMissionView: React.FC = () => {
                     <div key={doc.id} className="doc-card">
                       <div className="doc-card-top">
                         {renderSourceDocIcon(doc.detected_source, 20)}
-                        <span className="doc-filename truncate">{doc.original_filename}</span>
+                        <span className="doc-filename">{doc.original_filename}</span>
                       </div>
 
                       <div className="doc-meta-row">
@@ -1309,15 +1309,13 @@ export const FinanceMissionView: React.FC = () => {
                 </div>
 
                 <div className="w-full overflow-x-auto rounded-none border border-[#dfe7e3] bg-[#fbfcfa] shadow-none">
-                  <table className="w-full text-left border-collapse text-xs">
+                  <table className="w-full text-left border-collapse text-sm">
                     <thead>
-                      <tr className="border-b border-[#dfe7e3] bg-[#f1f4f0] text-[11px] font-semibold uppercase tracking-wider text-[#567079]">
-                        <th className="px-4 py-3">Order Ref</th>
-                        <th className="px-4 py-3">Match Type</th>
-                        <th className="px-4 py-3">Confidence</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Chain Legs</th>
-                        <th className="px-4 py-3">Signals Breakdown</th>
+                      <tr className="border-b-2 border-[#b4c2bd] bg-[#f1f4f0] text-xs font-semibold uppercase tracking-wider text-[#18324b]">
+                        <th className="px-6 py-4">Order Ref</th>
+                        <th className="px-6 py-4">Status & Confidence</th>
+                        <th className="px-6 py-4">Match Type</th>
+                        <th className="px-6 py-4">Chain Flow</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#dfe7e3]">
@@ -1329,49 +1327,71 @@ export const FinanceMissionView: React.FC = () => {
                         const saleEvt = linkedEvts.find((e) => e.event_type === "SALE");
                         const orderRef = saleEvt?.external_ref || saleEvt?.metadata?.order_number || m.id.slice(0, 8);
 
+                        // Group by event type
+                        const groupedEvents = linkedEvts.reduce((acc, evt) => {
+                          acc[evt.event_type] = (acc[evt.event_type] || 0) + 1;
+                          return acc;
+                        }, {} as Record<string, number>);
+
                         return (
-                          <tr key={m.id} className="hover:bg-[#f1f4f0] transition-colors">
-                            <td className="px-4 py-3">
-                              <code className="ref-code">{orderRef}</code>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="match-type-tag">{m.match_type.match("exact_id") ? "Exact" : "Best-effort match"}</span>
-                            </td>
-                            <td className="px-4 py-3 font-semibold text-[#18324b]">
-                              <span>
-                                {m.confidence}%
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="capitalize text-[#567079] font-medium">
-                                {m.status.replace(/_/g, " ")}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex gap-1">
-                                {linkedEvts.map((e) => (
-                                  <span key={e.id} className={`event-badge ${e.event_type} !rounded-none !bg-[#eef3ef] !text-[#18324b] !border-[#dfe7e3]`}>
-                                    {chainLegLabel(e.event_type)}
-                                  </span>
-                                ))}
+                          <tr key={m.id} className="group hover:bg-[#f1f4f0] transition-all duration-200">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-none bg-[#2e5962] flex items-center justify-center text-[#fbfcfa]">
+                                  <Package size={16} />
+                                </div>
+                                <div>
+                                  <div className="font-bold text-[#18324b] font-mono text-sm tracking-tight">{orderRef}</div>
+                                  <div className="text-xs text-[#567079] mt-0.5">{linkedEvts.length} linked records</div>
+                                </div>
                               </div>
                             </td>
-                            <td className="px-4 py-3">
-                              <button
-                                onClick={() =>
-                                  setSelectedSignalsMatch(
-                                    selectedSignalsMatch?.id === m.id ? null : m
-                                  )
-                                }
-                                className="btn-text-sm"
-                              >
-                                {selectedSignalsMatch?.id === m.id ? "Hide Match Details" : "View Match Details"}
-                              </button>
-                              {selectedSignalsMatch?.id === m.id && (
-                                <div className="mt-2 p-2 bg-[#eef3ef] rounded-none text-xs font-mono">
-                                  <pre>{JSON.stringify(m.signals, null, 2)}</pre>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  {m.confidence >= 95 ? (
+                                    <CheckCircle2 size={16} color="#29745d" />
+                                  ) : (
+                                    <AlertCircle size={16} color="#c99548" />
+                                  )}
+                                  <span className={`font-bold text-sm ${m.confidence >= 95 ? 'text-[#29745d]' : 'text-[#c99548]'}`}>
+                                    {m.confidence}%
+                                  </span>
                                 </div>
-                              )}
+                                <span className="text-xs text-[#567079] font-medium capitalize">
+                                  {m.status.replace(/_/g, " ")}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-none text-xs font-bold bg-[#ffffff] text-[#18324b] border border-[#b4c2bd] capitalize">
+                                {m.match_type.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-wrap gap-2 items-center">
+                                {Object.entries(groupedEvents).map(([type, count], idx, arr) => (
+                                  <React.Fragment key={type}>
+                                    <div className="flex items-center gap-1.5 group/tooltip relative cursor-help">
+                                      <span className="px-2.5 py-1 text-xs font-medium rounded-none bg-[#ffffff] text-[#18324b] border border-[#b4c2bd] transition-colors group-hover/tooltip:bg-[#f1f4f0]">
+                                        {chainLegLabel(type)} {count > 1 ? <span className="text-[#567079] font-medium ml-1">({count})</span> : null}
+                                      </span>
+                                      
+                                      <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max max-w-xs opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all bg-[#18324b] text-[#fbfcfa] text-xs rounded-none p-2 z-10 pointer-events-none">
+                                        <div className="font-bold mb-1 border-b border-[#567079] pb-1">{chainLegLabel(type)} Events</div>
+                                        <ul className="text-left space-y-1 mt-1">
+                                          {linkedEvts.filter(e => e.event_type === type).map(e => (
+                                            <li key={e.id} className="truncate text-[#fbfcfa]">
+                                              {e.amount ? `₹${e.amount}` : e.id.slice(0,8)} - {new Date(e.event_date).toLocaleDateString()}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    </div>
+                                    {idx < arr.length - 1 && <ArrowRight size={14} color="#869b9d" />}
+                                  </React.Fragment>
+                                ))}
+                              </div>
                             </td>
                           </tr>
                         );
