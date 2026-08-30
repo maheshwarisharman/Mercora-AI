@@ -869,8 +869,8 @@ export const FinanceMissionView: React.FC = () => {
                 {loadingMissions ? (
                   <tr>
                     <td colSpan={6} className="py-16 text-center text-[#567079]">
-                      <div className="inline-flex items-center gap-3 px-4 py-2 rounded-none bg-[#f1f4f0] border border-[#dfe7e3]">
-                        <div className="w-4 h-4 border-2 border-[#dfe7e3] border-t-transparent rounded-none animate-spin" />
+                      <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-[#f1f4f0] border border-[#dfe7e3]">
+                        <div className="w-4 h-4 border-2 border-[#dfe7e3] border-t-transparent rounded-full animate-spin" />
                         <span className="text-sm font-medium text-[#567079]">Loading finance missions...</span>
                       </div>
                     </td>
@@ -1422,7 +1422,7 @@ export const FinanceMissionView: React.FC = () => {
                                 >
                                   {isExplaining ? (
                                     <>
-                                      <div className="h-3.5 w-3.5 animate-spin rounded-none border-2 border-[#dfe7e3] border-t-[#18324b]" />
+                                      <div className="h-3.5 w-3.5 animate-spin rounded-xl border-2 border-[#dfe7e3] border-t-[#18324b]" />
                                       <span>Investigating...</span>
                                     </>
                                   ) : (
