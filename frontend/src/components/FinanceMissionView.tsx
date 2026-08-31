@@ -1787,7 +1787,7 @@ export const FinanceMissionView: React.FC = () => {
                     className="w-10 h-10 rounded-none bg-[#18324b] hover:bg-[#2e5962] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shadow-none shrink-0"
                   >
                     {qaSending ? (
-                      <div className="w-4 h-4 border-2 border-[#fbfcfa] border-t-transparent rounded-none animate-spin" />
+                      <div className="w-4 h-4 border-2 border-[#fbfcfa] border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <Send size={16} />
                     )}
@@ -1800,11 +1800,10 @@ export const FinanceMissionView: React.FC = () => {
           {/* STEP 5: Normalized Canonical Events Table — hidden once reconcile results are shown */}
           {matches.length === 0 && <section className="finance-step-card">
             <div className="step-badge-row">
-              <span className="step-num">Step 5</span>
-              <h2 className="step-heading">Canonical Financial Events Explorer</h2>
+              <h2 className="step-heading">Financial Events Explorer</h2>
             </div>
             <p className="step-description">
-              Raw data normalized into canonical financial events in <code>finance.normalized_events</code>.
+              Converted your raw files into structured records — sales, payments, fees, and refunds.
             </p>
 
             {/* Quick Metrics Bar */}
@@ -1893,22 +1892,22 @@ export const FinanceMissionView: React.FC = () => {
 
             {/* Events Data Table */}
             <div className="w-full overflow-x-auto rounded-none border border-[#dfe7e3] bg-[#fbfcfa] shadow-none">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-left border-collapse text-sm">
                 <thead>
-                  <tr className="border-b border-[#dfe7e3] bg-[#f1f4f0] text-[11px] font-semibold uppercase tracking-wider text-[#567079]">
-                    <th className="px-4 py-3">Event Type</th>
-                    <th className="px-4 py-3">Source</th>
-                    <th className="px-4 py-3">External / Batch Ref</th>
-                    <th className="px-4 py-3">Amount (INR)</th>
-                    <th className="px-4 py-3">Event Date</th>
-                    <th className="px-4 py-3">Counterparty</th>
-                    <th className="px-4 py-3 text-center" title="Cross-source link to core.orders / core.payments / core.customers">Linked?</th>
+                  <tr className="border-b-2 border-[#b4c2bd] bg-[#f1f4f0] text-xs font-semibold uppercase tracking-wider text-[#18324b]">
+                    <th className="px-6 py-4">Event Type</th>
+                    <th className="px-6 py-4">Source</th>
+                    <th className="px-6 py-4">External / Batch Ref</th>
+                    <th className="px-6 py-4">Amount (INR)</th>
+                    <th className="px-6 py-4">Event Date</th>
+                    <th className="px-6 py-4">Counterparty</th>
+                    <th className="px-6 py-4 text-center" title="Cross-source link to core.orders / core.payments / core.customers">Linked?</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#dfe7e3]">
                   {filteredEvents.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center text-sm text-[#567079]">
+                      <td colSpan={7} className="px-6 py-12 text-center text-sm text-[#567079]">
                         {events.length === 0
                           ? "No normalized events yet. Complete Step 3 above to extract and normalize."
                           : "No events match the selected filters."}
@@ -1918,51 +1917,53 @@ export const FinanceMissionView: React.FC = () => {
                     filteredEvents.map((evt) => {
                       const isLinked = !!(evt.order_id || evt.payment_id || evt.customer_id);
                       return (
-                        <tr key={evt.id} className="hover:bg-[#f1f4f0] transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="flex flex-col gap-1 items-start">
-                              <span className={`event-badge ${evt.event_type}`}>
-                                {evt.event_type}
+                        <tr key={evt.id} className="group hover:bg-[#f1f4f0] transition-all duration-200">
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1.5 items-start">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-none text-xs font-bold bg-[#ffffff] text-[#18324b] border border-[#b4c2bd] capitalize">
+                                {evt.event_type.replace(/_/g, " ")}
                               </span>
                               {evt.deduction_type && (
-                                <span className="deduction-pill">
-                                  {evt.deduction_type}
+                                <span className="text-xs text-[#567079] font-medium">
+                                  {evt.deduction_type.replace(/_/g, " ")}
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 font-medium text-[#18324b] capitalize">
-                            <span className="source-tag">{evt.source_system}</span>
+                          <td className="px-6 py-4 font-semibold text-[#18324b] capitalize">
+                            {evt.source_system.replace(/_/g, " ")}
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <code className="ref-code">{evt.external_ref || "—"}</code>
-                              {evt.batch_ref && evt.batch_ref !== evt.external_ref && (
-                                <span className="batch-pill" title={`Batch: ${evt.batch_ref}`}>
-                                  📦 {evt.batch_ref}
-                                </span>
-                              )}
-                              {evt.order_ids && evt.order_ids.length > 1 && (
-                                <span className="batch-pill" title={`Orders: ${evt.order_ids.join(", ")}`}>
-                                  {evt.order_ids.length} orders
-                                </span>
-                              )}
+                          <td className="px-6 py-4">
+                            <div className="flex flex-col gap-1 items-start">
+                              <div className="font-bold text-[#18324b] font-mono text-sm tracking-tight">{evt.external_ref || "—"}</div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {evt.batch_ref && evt.batch_ref !== evt.external_ref && (
+                                  <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-none bg-[#eef3ef] text-[#567079] border border-[#dfe7e3]" title={`Batch: ${evt.batch_ref}`}>
+                                    📦 {evt.batch_ref}
+                                  </span>
+                                )}
+                                {evt.order_ids && evt.order_ids.length > 1 && (
+                                  <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-none bg-[#eef3ef] text-[#567079] border border-[#dfe7e3]" title={`Orders: ${evt.order_ids.join(", ")}`}>
+                                    {evt.order_ids.length} orders
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 font-semibold text-[#18324b] font-mono">
+                          <td className="px-6 py-4 font-bold text-[#18324b] font-mono text-sm">
                             ₹{Number(evt.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="px-4 py-3 text-[#567079] whitespace-nowrap">{evt.event_date}</td>
-                          <td className="px-4 py-3 text-[#18324b] max-w-[220px] truncate" title={evt.counterparty || ""}>
+                          <td className="px-6 py-4 text-[#567079] whitespace-nowrap">{evt.event_date}</td>
+                          <td className="px-6 py-4 text-[#18324b] max-w-[220px] truncate" title={evt.counterparty || ""}>
                             {evt.counterparty || "—"}
                           </td>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-6 py-4 text-center">
                             {isLinked ? (
-                              <span className="link-check inline-flex items-center justify-center" title="Linked to core orders/payments">
-                                ✓
-                              </span>
+                              <div className="flex justify-center" title="Linked to core orders/payments">
+                                <CheckCircle2 size={16} color="#29745d" />
+                              </div>
                             ) : (
-                              <span className="link-dash">—</span>
+                              <span className="text-[#869b9d]">—</span>
                             )}
                           </td>
                         </tr>
