@@ -1,22 +1,48 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowLeft,
   ArrowUpRight,
+  Bot,
   Check,
   CircleAlert,
   Clock3,
   Database,
   ExternalLink,
   FileWarning,
+  MessageSquare,
   RefreshCw,
+  Send,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
+  User,
   WalletCards,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { ReasoningTrace, type AgentTraceStep } from "../components/ReasoningTrace";
+import { MarkdownContent } from "../components/MarkdownContent";
 
 type HealthVerdict = "healthy" | "needs_review" | "critical";
+
+interface AgentMessage {
+  role: "system" | "user" | "assistant" | "tool";
+  content: string;
+  toolCalls?: { id: string; name: string; arguments: Record<string, unknown> }[];
+  toolCallId?: string;
+}
+
+interface QAMessage {
+  role: "user" | "assistant";
+  content: string;
+  trace?: AgentTraceStep[];
+  hitStepBudget?: boolean;
+  citedExceptionIds?: string[];
+  citedEvidenceIds?: string[];
+  couldNotAnswer?: boolean;
+  isLoading?: boolean;
+}
 
 export interface MissionSummaryAggregate {
   missionId: string;
@@ -157,6 +183,58 @@ export const MissionSummary: React.FC<MissionSummaryProps> = ({ mission, onBack,
   const [error, setError] = useState<string | null>(null);
   const [pipelineStage, setPipelineStage] = useState<string | null>(null);
 
+  const [qaMessages, setQaMessages] = useState<QAMessage[]>([]);
+  const [qaInput, setQaInput] = useState("");
+  const [qaConversationHistory, setQaConversationHistory] = useState<AgentMessage[]>([]);
+  const [qaSending, setQaSending] = useState(false);
+  const [qaError, setQaError] = useState<string | null>(null);
+  const qaBottomRef = useRef<HTMLDivElement | null>(null);
+
+  const handleAskQuestion = async () => {
+    if (!mission || !qaInput.trim() || qaSending) return;
+
+    const question = qaInput.trim();
+    setQaInput("");
+    setQaError(null);
+    setQaSending(true);
+
+    setQaMessages((prev) => [...prev, { role: "user", content: question }]);
+    setQaMessages((prev) => [...prev, { role: "assistant", content: "", isLoading: true }]);
+
+    try {
+      const res = await fetchWithAuth(`/api/finance/missions/${mission.id}/ask`, {
+        method: "POST",
+        body: JSON.stringify({ question, conversationHistory: qaConversationHistory }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error || "Q&A request failed");
+      }
+
+      const result = data.data;
+      const assistantMsg: QAMessage = {
+        role: "assistant",
+        content: result.answer,
+        trace: result.trace,
+        hitStepBudget: result.hitStepBudget,
+        citedExceptionIds: result.citedExceptionIds,
+        citedEvidenceIds: result.citedEvidenceIds,
+        couldNotAnswer: result.couldNotAnswer,
+        isLoading: false,
+      };
+
+      setQaMessages((prev) => [...prev.slice(0, -1), assistantMsg]);
+      setQaConversationHistory(result.updatedConversationHistory || []);
+      setTimeout(() => qaBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    } catch (err: any) {
+      setQaMessages((prev) => prev.slice(0, -1));
+      setQaError(err.message || "Failed to get answer");
+    } finally {
+      setQaSending(false);
+    }
+  };
+
   const loadSummary = useCallback(async (regenerate = false) => {
     setError(null);
     if (regenerate) setRegenerating(true); else setLoading(true);
@@ -251,6 +329,165 @@ export const MissionSummary: React.FC<MissionSummaryProps> = ({ mission, onBack,
           <section className="summary-panel summary-insights-panel"><div className="summary-panel-heading"><div><p className="summary-eyebrow">Narrated readout</p><h2>What stands out</h2></div><span className="summary-trace-label"><Database size={13} /> Grounded in aggregate</span></div><div className="summary-insights-list">{narrative.insights.map((insight) => <div className={`summary-insight ${insight.severity}`} key={`${insight.metricRef}-${insight.text}`}><span className="summary-insight-icon">{insight.severity === "info" ? <Check size={15} /> : <AlertTriangle size={15} />}</span><div><p>{insight.text}</p><span className="summary-insight-source">{titleCase(insight.metricRef.split(".").at(-1) || "Metric")} <MetricValue aggregate={aggregate} metricRef={insight.metricRef} /></span></div></div>)}</div></section>
 
           <section className="summary-panel summary-actions-panel"><div className="summary-panel-heading"><div><p className="summary-eyebrow">Next moves</p><h2>Recommended actions</h2></div></div><div className="summary-actions-list">{narrative.recommendedActions.length ? narrative.recommendedActions.map((action, index) => <div className="summary-action-row" key={`${index}-${action.text}`}><span className="summary-action-index">{String(index + 1).padStart(2, "0")}</span><p>{action.text}</p>{action.relatedExceptionIds?.[0] && onOpenException ? <button onClick={() => onOpenException(action.relatedExceptionIds![0])}>Open exception <ExternalLink size={13} /></button> : null}</div>) : <p className="summary-empty-copy">No additional actions were recommended.</p>}</div></section>
+
+          {/* SETTLEMENT Q&A PANEL */}
+          <section className="summary-panel summary-qa-panel p-0 overflow-hidden">
+            <div className="px-5 pt-5 pb-4 border-b border-[#dfe7e3] bg-[#f1f4f0]">
+              <div className="flex items-center gap-2.5 mb-1">
+                <div className="w-8 h-8 rounded-none bg-[#18324b] flex items-center justify-center shadow-none">
+                  <Bot size={16} className="text-white" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-[#18324b]">Settlement Q&amp;A</h4>
+                  <p className="text-xs text-[#567079]">
+                    Ask anything about this mission — the agent uses its tools to answer and shows its reasoning.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Message list */}
+            <div className="px-5 py-4 space-y-4 max-h-[480px] overflow-y-auto bg-[#fbfcfa]">
+              {qaMessages.length === 0 && (
+                <div className="py-8 text-center">
+                  <div className="w-12 h-12 rounded-none bg-[#eef3ef] flex items-center justify-center mx-auto mb-3">
+                    <MessageSquare size={22} className="text-[#5d7b82]" />
+                  </div>
+                  <p className="text-sm font-semibold text-[#567079] mb-1">Ask about this mission</p>
+                  <p className="text-xs text-[#567079] max-w-xs mx-auto">
+                    Try: "What needs my attention?", "How much is unresolved?", or "Why did Razorpay settle less than expected?"
+                  </p>
+                </div>
+              )}
+
+              {qaMessages.map((msg, i) => (
+                <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
+                  {/* Avatar */}
+                  <div className={`w-7 h-7 rounded-none flex items-center justify-center shrink-0 ${
+                    msg.role === "user"
+                      ? "bg-[#18324b] text-white"
+                      : "bg-[#18324b] text-white"
+                  }`}>
+                    {msg.role === "user" ? <User size={13} /> : <Bot size={13} />}
+                  </div>
+
+                  {/* Bubble */}
+                  <div className={`max-w-[80%] rounded-none px-4 py-3 text-sm shadow-none ${
+                    msg.role === "user"
+                      ? "bg-[#18324b] text-white rounded-none"
+                      : "bg-[#fbfcfa] border border-[#dfe7e3] text-[#18324b] rounded-none"
+                  }`}>
+                    {msg.isLoading ? (
+                      <div className="flex items-center gap-1.5 py-1">
+                        {[0, 1, 2].map((d) => (
+                          <div
+                            key={d}
+                            className="w-1.5 h-1.5 rounded-none bg-[#5d7b82] animate-bounce"
+                            style={{ animationDelay: `${d * 0.15}s` }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        {/* Out-of-scope banner */}
+                        {msg.couldNotAnswer && (
+                          <div className="flex items-center gap-2 text-xs text-[#8a642b] bg-[#fff8eb] border border-[#e8d6b5] rounded-none px-3 py-2 mb-2">
+                            <AlertCircle size={13} className="shrink-0" />
+                            <span>Out of scope — I can only answer questions about this mission's reconciliation data.</span>
+                          </div>
+                        )}
+
+                        <MarkdownContent content={msg.content} isUser={msg.role === "user"} />
+
+                        {/* Cited exception chips */}
+                        {msg.citedExceptionIds && msg.citedExceptionIds.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2.5 pt-2.5 border-t border-[#dfe7e3]">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#567079]">Exceptions:</span>
+                            {msg.citedExceptionIds.map((id) => (
+                              <button
+                                key={id}
+                                onClick={() => onOpenException?.(id)}
+                                className="text-[11px] font-mono font-semibold text-[#18324b] bg-[#eef3ef] hover:bg-[#eef3ef] border border-[#dfe7e3] rounded-none px-2.5 py-0.5 transition-colors cursor-pointer"
+                                title="Click to view this exception"
+                              >
+                                #{id.slice(0, 8)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Cited evidence chips */}
+                        {msg.citedEvidenceIds && msg.citedEvidenceIds.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-[#dfe7e3]">
+                            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#567079]">Evidence:</span>
+                            {msg.citedEvidenceIds.map((ref) => (
+                              <span key={ref} className="text-[11px] font-mono font-semibold text-[#29745d] bg-[#eef3ef] border border-[#dfe7e3] rounded-none px-2.5 py-0.5">
+                                {ref}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Reasoning trace */}
+                        {msg.trace && msg.trace.length > 0 && (
+                          <ReasoningTrace
+                            trace={msg.trace}
+                            hitStepBudget={msg.hitStepBudget}
+                            className="mt-3"
+                          />
+                        )}
+
+                        {/* Budget banner */}
+                        {msg.hitStepBudget && !msg.couldNotAnswer && (
+                          <div className="flex items-center gap-2 text-xs text-[#8a642b] bg-[#fff8eb] border border-[#e8d6b5] rounded-none px-3 py-2 mt-2">
+                            <ShieldAlert size={13} className="shrink-0" />
+                            <span>Investigation budget reached — answer may be incomplete.</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Error */}
+              {qaError && (
+                <div className="flex items-center gap-2 text-xs text-[#b04b43] bg-[#fff1ef] border border-[#efd2cf] rounded-none px-4 py-3">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{qaError}</span>
+                </div>
+              )}
+
+              <div ref={qaBottomRef} />
+            </div>
+
+            {/* Input row */}
+            <div className="px-5 pb-5 pt-3 border-t border-[#dfe7e3] bg-[#f1f4f0] flex gap-2">
+              <input
+                type="text"
+                id="qa-question-input"
+                value={qaInput}
+                onChange={(e) => setQaInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAskQuestion(); } }}
+                placeholder="Ask about this mission's reconciliation..."
+                disabled={qaSending}
+                className="flex-1 text-sm bg-[#fbfcfa] border border-[#dfe7e3] rounded-none px-4 py-2.5 text-[#18324b] placeholder:text-[#567079] focus:outline-none focus:ring-2 focus:ring-[#c99548] focus:border-transparent disabled:opacity-60 transition-all"
+              />
+              <button
+                onClick={handleAskQuestion}
+                disabled={qaSending || !qaInput.trim()}
+                id="qa-send-button"
+                aria-label="Send question"
+                className="w-10 h-10 rounded-none bg-[#18324b] hover:bg-[#2e5962] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors shadow-none shrink-0"
+              >
+                {qaSending ? (
+                  <div className="w-4 h-4 border-2 border-[#fbfcfa] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send size={16} />
+                )}
+              </button>
+            </div>
+          </section>
         </main>
 
         <aside className="summary-rail">
