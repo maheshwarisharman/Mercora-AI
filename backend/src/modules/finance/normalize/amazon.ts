@@ -78,6 +78,26 @@ export function looksLikeAmazonSettlementHeaders(headers: string[]): boolean {
   );
 }
 
+/**
+ * Detects a standalone Amazon Orders CSV (Business Reports / Seller Central
+ * Orders export) by checking for order-level columns that are absent from the
+ * settlement Flat File V2. Handles both hyphenated and underscored variants.
+ */
+export function looksLikeAmazonOrderHeaders(headers: string[]): boolean {
+  const normalized = new Set(headers.map(normalizeAmazonHeader));
+  const has = (...names: string[]) => names.some((name) => normalized.has(normalizeAmazonHeader(name)));
+  // Must have an order identifier and a date. total_amount or product-sales
+  // confirms it is an orders file rather than the settlement report.
+  return (
+    (has("order-id", "order_id") || has("amazon-order-id")) &&
+    (has("order-date", "order_date")) &&
+    (has("total-amount", "total_amount", "product-sales", "item-total", "order-total")) &&
+    // Negative check: settlement files always have settlement-id, orders don't.
+    !has("settlement-id")
+  );
+}
+
+
 export function amazonValue(raw: Record<string, unknown>, key: string): string {
   const target = normalizeAmazonHeader(key);
   const entry = Object.entries(raw).find(([rawKey, value]) =>

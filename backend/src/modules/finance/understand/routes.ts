@@ -14,6 +14,7 @@ export const understandRouter = Router();
 const OverrideSourceSchema = z.object({
   detected_source: z.enum([
     "shopify_orders",
+    "amazon_orders",
     "razorpay_settlement",
     "amazon_settlement",
     "bank_statement",

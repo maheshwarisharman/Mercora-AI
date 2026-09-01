@@ -1,0 +1,4 @@
+order_id,order_number,customer_name,customer_email,order_date,total_amount,currency,status,refund_amount
+"111-1111111-1111111","#MRC-24025","Devika Rao","devika.rao@example.com","2026-08-02","1299.00","INR","paid",""
+"222-2222222-2222222","#MRC-24026","Faizan Sheikh","faizan.sheikh@example.com","2026-08-03","2499.00","INR","paid",""
+"333-3333333-3333333","#MRC-24027","Geeta Nambiar","geeta.nambiar@example.com","2026-08-04","1799.00","INR","returned","1799.00"

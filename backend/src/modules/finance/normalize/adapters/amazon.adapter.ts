@@ -142,40 +142,44 @@ export class AmazonAdapter implements SourceNormalizerAdapter {
         byOrder.set(orderRef, orderLines);
       }
 
-      for (const [orderRef, lines] of byOrder.entries()) {
-        const grossCredits = lines.reduce((sum, line) => {
-          // Principal is the canonical order value. If a report does not
-          // include Principal, retain other positive order-level credits so
-          // the order can still be reconciled and investigated.
-          return sum + (line.amount > 0 && (line.classification.category === "sale_proceeds" || !line.classification.isDeduction) ? line.amount : 0);
-        }, 0);
-        if (grossCredits <= 0) continue;
-        const representative = lines[0].record;
-        const raw = representative.raw_json;
-        events.push({
-          mission_id: missionId,
-          merchant_id: merchantId,
-          extracted_record_id: representative.id,
-          event_type: "SALE",
-          source_system: "amazon",
-          external_ref: orderRef,
-          amount: roundMoney(grossCredits),
-          currency,
-          event_date: amazonLineDate(raw, settlementDate),
-          counterparty: amazonValue(raw, "marketplace-name") || "Amazon Marketplace",
-          order_id: resolvedOrderIds.get(orderRef) || null,
-          batch_ref: group.settlementId,
-          order_ids: [orderRef],
-          metadata: {
-            raw_source_row: raw,
-            order_ref: orderRef,
-            merchant_order_id: amazonValue(raw, "merchant-order-id"),
-            amazon_order_id: amazonValue(raw, "order-id"),
-            amazon_settlement_id: group.settlementId,
-            gross_order_credits: roundMoney(grossCredits),
-            line_item_count: lines.length,
-          },
-        });
+      // If the mission also has an amazon_orders document, that adapter already
+      // emits one SALE per order — skip here to avoid duplication.
+      if (!context.suppressAmazonSaleEvents) {
+        for (const [orderRef, lines] of byOrder.entries()) {
+          const grossCredits = lines.reduce((sum, line) => {
+            // Principal is the canonical order value. If a report does not
+            // include Principal, retain other positive order-level credits so
+            // the order can still be reconciled and investigated.
+            return sum + (line.amount > 0 && (line.classification.category === "sale_proceeds" || !line.classification.isDeduction) ? line.amount : 0);
+          }, 0);
+          if (grossCredits <= 0) continue;
+          const representative = lines[0].record;
+          const raw = representative.raw_json;
+          events.push({
+            mission_id: missionId,
+            merchant_id: merchantId,
+            extracted_record_id: representative.id,
+            event_type: "SALE",
+            source_system: "amazon",
+            external_ref: orderRef,
+            amount: roundMoney(grossCredits),
+            currency,
+            event_date: amazonLineDate(raw, settlementDate),
+            counterparty: amazonValue(raw, "marketplace-name") || "Amazon Marketplace",
+            order_id: resolvedOrderIds.get(orderRef) || null,
+            batch_ref: group.settlementId,
+            order_ids: [orderRef],
+            metadata: {
+              raw_source_row: raw,
+              order_ref: orderRef,
+              merchant_order_id: amazonValue(raw, "merchant-order-id"),
+              amazon_order_id: amazonValue(raw, "order-id"),
+              amazon_settlement_id: group.settlementId,
+              gross_order_credits: roundMoney(grossCredits),
+              line_item_count: lines.length,
+            },
+          });
+        }
       }
 
       classifications.forEach(({ record, amount, classification }, index) => {

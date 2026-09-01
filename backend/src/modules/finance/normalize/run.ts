@@ -144,10 +144,14 @@ export async function runMissionNormalization(params: {
   executionBatches.sort((a, b) => a.adapter.priority - b.adapter.priority);
 
   // 6. Execute normalization across batches
+  // If any document is classified as amazon_orders, the AmazonOrdersAdapter
+  // already produces SALE events — suppress duplicates in the settlement adapter.
+  const hasAmazonOrdersSource = Array.from(recordsBySource.keys()).includes("amazon_orders");
   const context: NormalizationContext = {
     missionId,
     merchantId,
     supabase,
+    suppressAmazonSaleEvents: hasAmazonOrdersSource,
   };
 
   const allEventsToInsert: NormalizedEvent[] = [];

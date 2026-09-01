@@ -1,6 +1,6 @@
 import type { DetectedSource, DetectionMethod } from "../shared/types";
 import { looksLikeShopifyOrderHeaders } from "../normalize/shopify";
-import { looksLikeAmazonSettlementHeaders } from "../normalize/amazon";
+import { looksLikeAmazonSettlementHeaders, looksLikeAmazonOrderHeaders } from "../normalize/amazon";
 
 export interface ClassificationResult {
   detected_source: DetectedSource;
@@ -36,6 +36,8 @@ export function classifyDocumentHeuristic(
     lowerName.includes("ecom")
   ) {
     filenameCandidate = "generic_cod";
+  } else if (lowerName.includes("amazon") && (lowerName.includes("order") || lowerName.includes("business_report") || lowerName.includes("business-report"))) {
+    filenameCandidate = "amazon_orders";
   } else if (lowerName.includes("amazon") || lowerName.includes("mtr")) {
     filenameCandidate = "amazon_settlement";
   } else if (
@@ -67,6 +69,8 @@ export function classifyDocumentHeuristic(
       looksLikeShopifyOrderHeaders(headers || [])
     ) {
       headerCandidate = "shopify_orders";
+    } else if (looksLikeAmazonOrderHeaders(headers || [])) {
+      headerCandidate = "amazon_orders";
     } else if (looksLikeAmazonSettlementHeaders(headers || [])) {
       headerCandidate = "amazon_settlement";
     } else if (

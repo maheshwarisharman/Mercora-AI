@@ -32,6 +32,7 @@ import {
 import { ReasoningTrace, type AgentTraceStep } from "./ReasoningTrace";
 import { MissionSummary } from "../pages/MissionSummary";
 import { ModernDatePicker } from "./ModernDatePicker";
+import { MarkdownContent } from "./MarkdownContent";
 
 interface FinanceMission {
   id: string;
@@ -50,6 +51,7 @@ interface SourceDoc {
   original_filename: string;
   detected_source:
     | "shopify_orders"
+    | "amazon_orders"
     | "razorpay_settlement"
     | "amazon_settlement"
     | "bank_statement"
@@ -152,6 +154,8 @@ function renderSourceDocIcon(source: string, size: number = 20) {
   switch (source) {
     case "shopify_orders":
       return <span title="Shopify Orders" className="inline-flex"><ShoppingBag size={size} style={{ color: "#059669" }} className="flex-shrink-0" /></span>;
+    case "amazon_orders":
+      return <span title="Amazon Orders" className="inline-flex"><Package size={size} style={{ color: "#f97316" }} className="flex-shrink-0" /></span>;
     case "razorpay_settlement":
       return <span title="Razorpay Settlement" className="inline-flex"><CreditCard size={size} style={{ color: "#0284c7" }} className="flex-shrink-0" /></span>;
     case "amazon_settlement":
@@ -1073,7 +1077,7 @@ export const FinanceMissionView: React.FC = () => {
               {uploading && (
                 <div className="dropzone-loading">
                   <div className="spinner-sm" />
-                  <span>Uploading to Supabase Storage and classifying...</span>
+                  <span>Uploading documents</span>
                 </div>
               )}
             </div>
@@ -1108,6 +1112,7 @@ export const FinanceMissionView: React.FC = () => {
                           className="select-sm"
                         >
                           <option value="shopify_orders">Shopify Orders</option>
+                          <option value="amazon_orders">Amazon Orders CSV</option>
                           <option value="razorpay_settlement">Razorpay Settlement</option>
                           <option value="amazon_settlement">Amazon Flat File V2</option>
                           <option value="generic_cod">Generic COD Remittance</option>
@@ -1703,7 +1708,7 @@ export const FinanceMissionView: React.FC = () => {
                               </div>
                             )}
 
-                            <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                            <MarkdownContent content={msg.content} isUser={msg.role === "user"} />
 
                             {/* Cited exception chips */}
                             {msg.citedExceptionIds && msg.citedExceptionIds.length > 0 && (

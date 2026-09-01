@@ -4,6 +4,7 @@ import { RazorpayAdapter } from "./adapters/razorpay.adapter";
 import { BankAdapter } from "./adapters/bank.adapter";
 import { GenericCodAdapter } from "./adapters/generic-cod.adapter";
 import { AmazonAdapter } from "./adapters/amazon.adapter";
+import { AmazonOrdersAdapter } from "./adapters/amazon-orders.adapter";
 
 export class NormalizerRegistry {
   private adapters = new Map<string, SourceNormalizerAdapter>();
@@ -17,6 +18,7 @@ export class NormalizerRegistry {
    */
   private registerDefaults(): void {
     this.register(new ShopifyAdapter());
+    this.register(new AmazonOrdersAdapter()); // priority 2 — must run before AmazonAdapter (3)
     this.register(new RazorpayAdapter());
     this.register(new BankAdapter());
     this.register(new AmazonAdapter());

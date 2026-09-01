@@ -5,6 +5,12 @@ export interface NormalizationContext {
   missionId: string;
   merchantId: string;
   supabase: SupabaseClient;
+  /**
+   * When true, the AmazonAdapter (settlement) will skip emitting SALE events
+   * because an AmazonOrdersAdapter run (amazon_orders source) is already
+   * producing SALE events for this mission, preventing duplicates.
+   */
+  suppressAmazonSaleEvents?: boolean;
 }
 
 export interface ValidationResult {

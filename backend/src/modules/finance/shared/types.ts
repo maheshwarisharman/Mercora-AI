@@ -64,6 +64,7 @@ export type MissionStatus =
 
 export type DetectedSource =
   | 'shopify_orders'
+  | 'amazon_orders'
   | 'razorpay_settlement'
   | 'amazon_settlement'
   | 'bank_statement'
