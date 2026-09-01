@@ -78,6 +78,55 @@ export function normalizeClassification(raw: unknown): JudgmentClassification {
   return "REQUIRES_HUMAN_REVIEW";
 }
 
+export const VALID_MERCHANT_CATEGORIES = [
+  "referral fee",
+  "closing fee",
+  "fulfillment fee",
+  "weight or handling fee",
+  "shipping fee",
+  "storage fee",
+  "return processing charge",
+  "promotional rebate",
+  "statutory tax withholding",
+  "reserve or balance movement",
+  "marketplace tax or fee",
+  "other marketplace deduction",
+  "unresolved",
+] as const;
+
+export type MerchantCategory = (typeof VALID_MERCHANT_CATEGORIES)[number];
+
+const MerchantCategoryEnum = z.enum(VALID_MERCHANT_CATEGORIES);
+
+export function normalizeMerchantCategory(raw: unknown): MerchantCategory | undefined {
+  if (!raw || typeof raw !== "string") {
+    return undefined;
+  }
+
+  const cleaned = raw.toLowerCase().trim().replace(/[_-]+/g, " ");
+  if (!cleaned) return undefined;
+
+  if ((VALID_MERCHANT_CATEGORIES as readonly string[]).includes(cleaned)) {
+    return cleaned as MerchantCategory;
+  }
+
+  if (cleaned.includes("referral")) return "referral fee";
+  if (cleaned.includes("closing")) return "closing fee";
+  if (cleaned.includes("weight") || cleaned.includes("handling")) return "weight or handling fee";
+  if (cleaned.includes("fulfillment") || cleaned.includes("fba") || cleaned.includes("pick & pack") || cleaned.includes("pick and pack")) return "fulfillment fee";
+  if (cleaned.includes("shipping") || cleaned.includes("delivery") || cleaned.includes("transport")) return "shipping fee";
+  if (cleaned.includes("storage") || cleaned.includes("warehouse")) return "storage fee";
+  if (cleaned.includes("return") || cleaned.includes("clawback") || cleaned.includes("reverse")) return "return processing charge";
+  if (cleaned.includes("promo") || cleaned.includes("rebate") || cleaned.includes("discount")) return "promotional rebate";
+  if (cleaned.includes("statutory") || cleaned.includes("tds") || cleaned.includes("tcs") || cleaned.includes("withholding")) return "statutory tax withholding";
+  if (cleaned.includes("reserve") || cleaned.includes("hold") || cleaned.includes("balance movement")) return "reserve or balance movement";
+  if (cleaned.includes("tax") || cleaned.includes("gst") || cleaned.includes("vat")) return "marketplace tax or fee";
+  if (cleaned.includes("other") || cleaned.includes("misc") || cleaned.includes("commission") || cleaned.includes("penalty") || cleaned.includes("deduction") || cleaned.includes("fee")) return "other marketplace deduction";
+  if (cleaned.includes("unresolved") || cleaned.includes("unknown") || cleaned.includes("none")) return "unresolved";
+
+  return "other marketplace deduction";
+}
+
 const ExceptionJudgmentSchema = z.object({
   classification: JudgmentClassificationEnum,
   confidence: z.number().min(0).max(100),
@@ -86,21 +135,7 @@ const ExceptionJudgmentSchema = z.object({
     .array(z.string())
     .describe("source_refs of evidence items cited — must only reference items returned by search_evidence or get_amazon_deduction_context during this run"),
   recommended_action: z.string(),
-  merchant_category: z.enum([
-    "referral fee",
-    "closing fee",
-    "fulfillment fee",
-    "weight or handling fee",
-    "shipping fee",
-    "storage fee",
-    "return processing charge",
-    "promotional rebate",
-    "statutory tax withholding",
-    "reserve or balance movement",
-    "marketplace tax or fee",
-    "other marketplace deduction",
-    "unresolved",
-  ]).optional(),
+  merchant_category: MerchantCategoryEnum.optional(),
 });
 
 export type ExceptionJudgment = z.infer<typeof ExceptionJudgmentSchema>;
@@ -239,7 +274,7 @@ Use your tools to investigate. Call get_exception_details first to see the full 
     recommended_action: String(
       raw.recommended_action ?? raw.recommendedAction ?? raw.action ?? raw.recommendation ?? "Review manually in financial portal."
     ),
-    merchant_category: typeof raw.merchant_category === "string" ? raw.merchant_category.trim().toLowerCase() : undefined,
+    merchant_category: normalizeMerchantCategory(raw.merchant_category ?? raw.merchantCategory),
   };
 
   let judgment: ExceptionJudgment;
