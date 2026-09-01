@@ -24,10 +24,10 @@ export function classifyDocumentHeuristic(
   const normalizedHeaders = headers?.map((h) => h.toLowerCase().trim().replace(/[^a-z0-9]/g, "")) || [];
 
   // 1. Filename heuristic candidate
+  // IMPORTANT: More-specific vendor checks must come before generic ones.
+  // e.g. "amazon_orders.csv" must not be caught by the bare lowerName.includes("order") shopify branch.
   let filenameCandidate: DetectedSource | null = null;
-  if (lowerName.includes("shopify") || lowerName.includes("order")) {
-    filenameCandidate = "shopify_orders";
-  } else if (
+  if (
     lowerName.includes("cod") ||
     lowerName.includes("remittance") ||
     lowerName.includes("delhivery") ||
@@ -36,18 +36,23 @@ export function classifyDocumentHeuristic(
     lowerName.includes("ecom")
   ) {
     filenameCandidate = "generic_cod";
-  } else if (lowerName.includes("amazon") && (lowerName.includes("order") || lowerName.includes("business_report") || lowerName.includes("business-report"))) {
+  } else if (
+    lowerName.includes("amazon") &&
+    (lowerName.includes("order") || lowerName.includes("business_report") || lowerName.includes("business-report"))
+  ) {
+    // Amazon orders file — must be checked before generic "order" → shopify fallback
     filenameCandidate = "amazon_orders";
   } else if (lowerName.includes("amazon") || lowerName.includes("mtr")) {
     filenameCandidate = "amazon_settlement";
+  } else if (lowerName.includes("shopify") || lowerName.includes("order")) {
+    // Generic "order" only reaches here after amazon-specific checks have passed
+    filenameCandidate = "shopify_orders";
   } else if (
     lowerName.includes("razorpay") ||
     lowerName.includes("settlement") ||
     lowerName.includes("payment")
   ) {
-    filenameCandidate = lowerName.includes("amazon") || lowerName.includes("mtr")
-      ? "amazon_settlement"
-      : "razorpay_settlement";
+    filenameCandidate = "razorpay_settlement";
   } else if (
     lowerName.includes("bank") ||
     lowerName.includes("statement") ||

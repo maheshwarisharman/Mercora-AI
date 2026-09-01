@@ -133,7 +133,7 @@ create type finance.mission_status as enum (
 );
 
 create type finance.detected_source as enum (
-  'shopify_orders', 'razorpay_settlement', 'amazon_settlement', 'bank_statement',
+  'shopify_orders', 'amazon_orders', 'razorpay_settlement', 'amazon_settlement', 'bank_statement',
   'generic_cod', 'courier_settlement',
   'vendor_invoice', 'support_export', 'unknown'
 );
