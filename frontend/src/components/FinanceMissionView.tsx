@@ -1168,24 +1168,6 @@ export const FinanceMissionView: React.FC = () => {
               </div>
             )}
 
-            {/* Realtime Process Log Stream */}
-            {processLogs.length > 0 && (
-              <div className="process-logs-terminal">
-                <div className="terminal-header">
-                  <span className="terminal-dot red" />
-                  <span className="terminal-dot yellow" />
-                  <span className="terminal-dot green" />
-                  <span className="terminal-title">Extraction & Normalization Log</span>
-                </div>
-                <div className="terminal-body">
-                  {processLogs.map((log, idx) => (
-                    <div key={idx} className="terminal-line">
-                      {log}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </section>
 
           {/* STEP 4: Reconciliation & Exception Detection */}
@@ -1225,25 +1207,6 @@ export const FinanceMissionView: React.FC = () => {
               <div className="alert alert-error mt-4">
                 <AlertCircle size={18} />
                 <span>{reconcileError}</span>
-              </div>
-            )}
-
-            {/* Realtime Reconcile Log Stream */}
-            {reconcileLogs.length > 0 && (
-              <div className="process-logs-terminal">
-                <div className="terminal-header">
-                  <span className="terminal-dot red" />
-                  <span className="terminal-dot yellow" />
-                  <span className="terminal-dot green" />
-                  <span className="terminal-title">Reconciliation Execution Log</span>
-                </div>
-                <div className="terminal-body">
-                  {reconcileLogs.map((log, idx) => (
-                    <div key={idx} className="terminal-line">
-                      {log}
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
 
