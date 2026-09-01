@@ -37,4 +37,19 @@ describe("finance source classification", () => {
     expect(result.detected_source).toBe("amazon_settlement");
     expect(result.detection_confidence).toBe(95);
   });
+
+  test("recognizes Amazon Orders CSV from filename and headers", () => {
+    const result = classifyDocumentHeuristic("amazon_orders.csv", [
+      "order_id",
+      "order_number",
+      "customer_name",
+      "customer_email",
+      "order_date",
+      "total_amount",
+      "currency",
+      "status",
+    ]);
+    expect(result.detected_source).toBe("amazon_orders");
+    expect(result.detection_confidence).toBe(95);
+  });
 });

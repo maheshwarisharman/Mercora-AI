@@ -86,10 +86,22 @@ export function detectMissionExceptions(events: NormalizedEvent[], options: {
       amazonExceptionSignatures.add(signature);
       const amount = Math.abs(Number(event.amount || 0));
       const orderRef = String(event.metadata?.order_ref || "");
-      const relatedSale = sales.find((sale) =>
-        (event.order_id && sale.order_id && event.order_id === sale.order_id) ||
-        (orderRef && (sale.external_ref === orderRef || sale.metadata?.order_ref === orderRef))
+      const amazonSales = sales.filter(
+        (sale) => String(sale.metadata?.canonical_source_system || sale.source_system).toLowerCase() === "amazon"
       );
+      const matchesSale = (sale: NormalizedEvent) =>
+        Boolean(
+          (event.order_id && sale.order_id && event.order_id === sale.order_id) ||
+          (orderRef && (
+            sale.external_ref === orderRef ||
+            sale.metadata?.order_ref === orderRef ||
+            sale.metadata?.order_number === orderRef ||
+            sale.metadata?.merchant_order_id === orderRef ||
+            sale.metadata?.amazon_order_id === orderRef ||
+            sale.metadata?.order_id === orderRef
+          ))
+        );
+      const relatedSale = amazonSales.find(matchesSale) || sales.find(matchesSale);
       exceptions.push({
         exception_type,
         normalized_event_ids: [event.id, relatedSale?.id].filter((id): id is string => Boolean(id)).slice(0, 21),

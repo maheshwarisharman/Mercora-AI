@@ -158,24 +158,28 @@ export class AmazonOrdersAdapter implements SourceNormalizerAdapter {
       if (orderData) dbOrderId = orderData.id;
 
       // 3. Emit a SALE event
+      const effectiveOrderRef = orderNumber || orderId;
       events.push({
         mission_id: missionId,
         merchant_id: merchantId,
         extracted_record_id: representative.id,
         event_type: "SALE",
         source_system: "amazon",
-        external_ref: orderId,
+        external_ref: effectiveOrderRef,
         amount: Math.round(totalAmount * 100) / 100,
         currency,
         event_date: orderDate,
         counterparty: "Amazon Marketplace",
         order_id: dbOrderId,
         customer_id: customerId,
-        order_ids: [orderId],
+        order_ids: [orderId, orderNumber].filter(Boolean),
         metadata: {
           raw_source_row: raw,
           order_id: orderId,
           order_number: orderNumber || orderId,
+          order_ref: effectiveOrderRef,
+          amazon_order_id: orderId,
+          merchant_order_id: orderNumber || null,
           order_date: orderDate,
           order_status: status,
           customer_email: customerEmail || null,

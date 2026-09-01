@@ -69,15 +69,20 @@ export function classifyDocumentHeuristic(
   if (normalizedHeaders.length > 0) {
     const hasHeader = (h: string) => normalizedHeaders.some((item) => item.includes(h));
 
-    if (
-      (hasHeader("orderid") && hasHeader("customeremail")) ||
-      looksLikeShopifyOrderHeaders(headers || [])
+    if (looksLikeAmazonSettlementHeaders(headers || [])) {
+      headerCandidate = "amazon_settlement";
+    } else if (
+      looksLikeAmazonOrderHeaders(headers || []) &&
+      (filenameCandidate === "amazon_orders" || hasHeader("amazon") || hasHeader("asin") || hasHeader("merchantorderid"))
+    ) {
+      headerCandidate = "amazon_orders";
+    } else if (
+      looksLikeShopifyOrderHeaders(headers || []) ||
+      (hasHeader("orderid") && hasHeader("customeremail") && filenameCandidate !== "amazon_orders")
     ) {
       headerCandidate = "shopify_orders";
     } else if (looksLikeAmazonOrderHeaders(headers || [])) {
       headerCandidate = "amazon_orders";
-    } else if (looksLikeAmazonSettlementHeaders(headers || [])) {
-      headerCandidate = "amazon_settlement";
     } else if (
       hasHeader("codamount") &&
       (hasHeader("reforderid") || hasHeader("orderid") || hasHeader("awb")) &&
