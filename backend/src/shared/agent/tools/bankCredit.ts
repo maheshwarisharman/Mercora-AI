@@ -17,14 +17,16 @@ const bankCreditFields = "id, event_type, source_system, external_ref, amount, c
 export const getBankCreditDefinition: ToolDefinition = {
   name: "get_bank_credit",
   description:
-    "Fetches one real bank credit from the current finance mission, including its exact narration, amount, date, and normalized event ID. " +
-    "Use this before deciding whether an ambiguous credit belongs to one of the supplied candidate batches.",
+    "Fetches real bank credit transactions from the current finance mission, including exact narration, amount, date, and normalized event ID. " +
+    "Can be queried by event UUID, UTR / reference, settlement ID (e.g. 'AMZ-DEMO-2026-08-001'), narration keyword, or amount.",
   parameters: {
     type: "object",
     properties: {
-      id: { type: "string", description: "The normalized BANK_TRANSACTION or BANK_CREDIT event UUID." },
+      id: { type: "string", description: "The normalized BANK_TRANSACTION or BANK_CREDIT event UUID (optional if reference or query is provided)." },
+      reference: { type: "string", description: "UTR, settlement ID, or reference number (e.g. 'UTR-AMZ-DEMO-001', 'AMZ-DEMO-2026-08-001')." },
+      query: { type: "string", description: "Narration, counterparty, or description keyword to search in bank statement." },
+      amount: { type: "number", description: "Bank credit amount in INR." },
     },
-    required: ["id"],
   },
 };
 
@@ -106,21 +108,71 @@ function publicEvent(event: any): Record<string, unknown> {
 export async function getBankCredit(args: Record<string, unknown>, ctx: BankCreditToolContext): Promise<unknown> {
   const scope = scoped(ctx);
   if ("error" in scope) return scope;
-  const id = String(args.id || "");
-  if (!id) return { error: "id is required" };
 
-  const { data, error } = await getServiceSupabase()
+  const id = String(args.id || "").trim();
+  const ref = String(args.reference || args.query || args.narration || "").trim();
+  const amount = args.amount !== undefined && args.amount !== null ? Number(args.amount) : null;
+
+  const supabase = getServiceSupabase();
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+  if (isUuid) {
+    const { data, error } = await supabase
+      .schema("finance")
+      .from("normalized_events")
+      .select(bankCreditFields)
+      .eq("id", id)
+      .eq("mission_id", scope.missionId)
+      .eq("merchant_id", scope.merchantId)
+      .maybeSingle();
+    if (error || !data) return { error: error?.message || "Bank credit not found" };
+    if (!isBankCredit(data)) return { error: "The requested event is not a bank credit" };
+    return { bank_credit: publicEvent(data) };
+  }
+
+  // Search by reference / query / amount
+  const searchKey = ref || id;
+  const { data: allBankEvents, error } = await supabase
     .schema("finance")
     .from("normalized_events")
     .select(bankCreditFields)
-    .eq("id", id)
     .eq("mission_id", scope.missionId)
-    .eq("merchant_id", scope.merchantId)
-    .maybeSingle();
-  if (error || !data) return { error: error?.message || "Bank credit not found" };
-  if (!isBankCredit(data)) return { error: "The requested event is not a bank credit" };
-  return { bank_credit: publicEvent(data) };
+    .eq("merchant_id", scope.merchantId);
+
+  if (error) return { error: error.message };
+
+  const bankCredits = (allBankEvents || []).filter(isBankCredit);
+  let matches = bankCredits;
+
+  if (searchKey) {
+    const lowerKey = searchKey.toLowerCase();
+    matches = matches.filter((e) => {
+      const narration = [e.external_ref, e.counterparty, e.metadata?.description, e.metadata?.narration, e.metadata?.remarks]
+        .filter(Boolean).join(" ").toLowerCase();
+      return (
+        narration.includes(lowerKey) ||
+        String(e.external_ref || "").toLowerCase().includes(lowerKey) ||
+        String(e.counterparty || "").toLowerCase().includes(lowerKey) ||
+        String(e.batch_ref || "").toLowerCase().includes(lowerKey)
+      );
+    });
+  }
+
+  if (amount !== null && !isNaN(amount)) {
+    matches = matches.filter((e) => Math.abs(Number(e.amount) - amount) <= 1.0);
+  }
+
+  if (matches.length === 0) {
+    return { error: `No bank credit matching criteria found for reference "${searchKey || amount}".` };
+  }
+
+  return {
+    bank_credit: publicEvent(matches[0]),
+    all_matching_credits: matches.map(publicEvent),
+    count: matches.length,
+  };
 }
+
 
 export async function listCandidateBatches(args: Record<string, unknown>, ctx: BankCreditToolContext): Promise<unknown> {
   const scope = scoped(ctx);
