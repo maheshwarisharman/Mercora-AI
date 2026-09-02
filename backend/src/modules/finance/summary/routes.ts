@@ -106,7 +106,24 @@ summaryRouter.get("/missions/:missionId/summary", async (req: AuthenticatedReque
       .maybeSingle();
 
     if (error) throw new Error(`Failed to load cached mission summary: ${error.message}`);
-    const summary = cached || await buildAndCache(missionId, merchant.id);
+    if (cached) {
+      // Recompute the deterministic SQL aggregate so live updates to exceptions (e.g. resolved items),
+      // matches, or events are always immediately reflected in the report metrics and Priority Queue
+      // table without needing an expensive narrative LLM regeneration.
+      const freshAggregate = await buildMissionAggregate(missionId);
+      if (JSON.stringify(cached.aggregate_json) !== JSON.stringify(freshAggregate)) {
+        await supabase
+          .schema("finance")
+          .from("mission_summaries")
+          .update({ aggregate_json: freshAggregate })
+          .eq("mission_id", missionId);
+        cached.aggregate_json = freshAggregate;
+      }
+      res.json({ success: true, data: cached });
+      return;
+    }
+
+    const summary = await buildAndCache(missionId, merchant.id);
     res.json({ success: true, data: summary });
   } catch (error: any) {
     sendError(res, error);
