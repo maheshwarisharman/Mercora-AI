@@ -292,7 +292,7 @@ export const MissionSummary: React.FC<MissionSummaryProps> = ({ mission, onBack,
   return (
     <div className="summary-shell">
       <header className="summary-header">
-        <button className="summary-back-link" onClick={onBack}><ArrowLeft size={16} /> All missions</button>
+        <button className="summary-back-link" onClick={onBack}><ArrowLeft size={16} /> Back to mission</button>
         <div className="summary-header-main">
           <div>
             <div className="summary-eyebrow"><span className="summary-kicker-dot" /> Reconciliation report <code>#{mission.id.slice(0, 8)}</code></div>
