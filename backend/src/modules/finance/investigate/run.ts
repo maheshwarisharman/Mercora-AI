@@ -378,7 +378,7 @@ Use your tools to investigate. Call get_exception_details first to see the full 
   if (
     normalized.merchant_category &&
     normalized.merchant_category !== "unresolved" &&
-    ["amazon_unknown_deduction", "amazon_return_clawback", "amazon_fee_anomaly"].includes(exception.exception_type)
+    ["unexplained_difference", "amazon_return_clawback", "amazon_fee_anomaly"].includes(exception.exception_type)
   ) {
     const { data: linkedAmazonEvents } = await supabase
       .schema("finance")

@@ -117,7 +117,6 @@ interface ExceptionJudgment {
 const FRIENDLY_LABELS: Record<string, string> = {
   MISSING_BANK_CREDIT: "Bank payment not received yet",
   UNEXPLAINED_DIFFERENCE: "Amount doesn't match",
-  AMAZON_UNKNOWN_DEDUCTION: "Unrecognized Amazon fee",
   AMAZON_RETURN_CLAWBACK: "Amazon deducted for a return",
   REQUIRES_HUMAN_REVIEW: "Needs Your Review",
   EXPLAINED: "Resolved",
@@ -226,7 +225,6 @@ interface MissionException {
     | "missing_bank_credit"
     | "ambiguous_bank_credit"
     | "unexplained_difference"
-    | "amazon_unknown_deduction"
     | "amazon_return_clawback"
     | "amazon_fee_anomaly";
   expected_amount: number;
@@ -1001,7 +999,7 @@ export const FinanceMissionView: React.FC = () => {
               {uploading && (
                 <div className="dropzone-loading">
                   <div className="spinner-sm" />
-                  <span>Uploading documents</span>
+                  <span>Uploading documents...</span>
                 </div>
               )}
             </div>

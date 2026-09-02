@@ -1642,7 +1642,6 @@ body {
 .exception-badge.timing_difference { background: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
 .exception-badge.duplicate { background: #fdf4ff; color: #86198f; border: 1px solid #f5d0fe; }
 .exception-badge.unexplained_difference { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
-.exception-badge.amazon_unknown_deduction,
 .exception-badge.amazon_return_clawback,
 .exception-badge.amazon_fee_anomaly { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
 

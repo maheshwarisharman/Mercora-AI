@@ -19,14 +19,17 @@ function event(overrides: Partial<NormalizedEvent>): NormalizedEvent {
 }
 
 describe("Amazon exception detection", () => {
-  test("excludes TCS/TDS and flags unknown codes", () => {
+  test("excludes TCS/TDS and does NOT raise a named exception for unrecognized codes", () => {
+    // Unrecognized deduction lines no longer produce a self-labelling named exception.
+    // Instead the unfamiliar fee silently reduces the settlement net, and the discrepancy
+    // surfaces as a generic unexplained_difference that the investigation agent must dig into.
     const exceptions = detectMissionExceptions([
       event({ id: "tcs", metadata: { canonical_event_type: "FEE", canonical_source_system: "amazon", is_deduction: true, is_statutory_withholding: true, deduction_category: "statutory_tax_withholding" } }),
       event({ id: "new-code", metadata: { canonical_event_type: "FEE", canonical_source_system: "amazon", is_deduction: true, deduction_category: "unrecognized_deduction" } }),
     ]);
     expect(exceptions.some((exception) => exception.normalized_event_ids.includes("tcs"))).toBe(false);
-    expect(exceptions).toHaveLength(1);
-    expect(exceptions[0]?.exception_type).toBe("amazon_unknown_deduction");
+    expect(exceptions.some((exception) => exception.normalized_event_ids.includes("new-code"))).toBe(false);
+    expect(exceptions).toHaveLength(0);
   });
 
   test("flags a long-lookback return clawback only when no Shopify return is present", () => {

@@ -12,7 +12,6 @@ export interface DetectedException {
     | "missing_bank_credit"
     | "ambiguous_bank_credit"
     | "unexplained_difference"
-    | "amazon_unknown_deduction"
     | "amazon_return_clawback"
     | "amazon_fee_anomaly";
   normalized_event_ids: string[];
@@ -113,9 +112,12 @@ export function detectMissionExceptions(events: NormalizedEvent[], options: {
     };
 
     const flags = Array.isArray(metadata.anomaly_flags) ? metadata.anomaly_flags.map(String) : [];
-    if (metadata.deduction_category === "unrecognized_deduction") {
-      addAmazonException("amazon_unknown_deduction");
-    }
+    // NOTE: unrecognized_deduction lines are intentionally NOT raised as a named
+    // exception here. An unfamiliar Amazon fee code silently reduces the settlement
+    // net, which surfaces as a generic unexplained_difference when the bank credit
+    // doesn't match the expected settlement total. This forces the investigation
+    // agent to call get_amazon_deduction_context and actually reason about the
+    // unknown code — rather than just echoing a self-explanatory exception label.
     if (flags.includes("weight_charge_over_10_percent_of_order")) {
       addAmazonException("amazon_fee_anomaly");
     }
